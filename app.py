@@ -38,8 +38,8 @@ def main():
 
     # --- Data Loading ---
     try:
-        username = os.getlogin()
-        metadata_file_path = config.METADATA_FILE_PATH_TEMPLATE.format(username=username)
+        # username = os.getlogin()
+        metadata_file_path = config.METADATA_FILE_PATH_TEMPLATE
         df_original = data_loader.load_and_process_data(metadata_file_path)
 
         if df_original.empty:

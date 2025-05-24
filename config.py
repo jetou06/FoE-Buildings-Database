@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 # logger.addHandler(logfile)
 
 # --- File Paths ---
-METADATA_FILE_PATH_TEMPLATE = r'C:\\Users\\{username}\\Proton Drive\\antoine.deval2\\My files\\FoEBuildingDB\\metadata-zz0-129.json' # Use double backslashes or raw string
+METADATA_FILE_PATH_TEMPLATE = r'metadata-zz0-129.json' # Use double backslashes or raw string
 DB_PATH = 'foe_buildings.db'
 ASSETS_PATH = 'assets' # Relative path assumed from app root
 
