@@ -1,0 +1,10 @@
+{
+  "units_production": {
+    "one": "Produces 1 %{unit_type} unit",
+    "other": "Produces %{count} %{unit_type} units"
+  },
+  "goods_production": {
+    "one": "Produces 1 %{good_type}",
+    "other": "Produces %{count} %{good_type}"
+  }
+}
