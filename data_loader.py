@@ -3,6 +3,7 @@ import logging
 import os
 import sqlite3
 from typing import Dict, List, Tuple, Any
+import requests as r
 
 import pandas as pd
 import streamlit as st
@@ -402,8 +403,13 @@ class BuildingAnalyzer:
     def load_data(self):
         """Load building data from JSON and parse directly into a list of dictionaries."""
         try:
-            with open(self.file_path, 'r', encoding='utf-8') as f:
-                 raw_building_data = json.load(f)
+            if not self.file_path.startswith("https"):
+                logger.info("Loading JSON File")
+                with open(self.file_path, 'r', encoding='utf-8') as f:
+                    raw_building_data = json.load(f)
+            else:
+                logger.info("Loading Github URL")
+                raw_building_data = json.loads(r.get(self.file_path).content)
 
             with open(os.path.join(ASSETS_PATH, 'event_tags.json'), 'r', encoding='utf-8') as f:
                 event_tags = json.load(f)
@@ -627,10 +633,11 @@ class BuildingAnalyzer:
 def load_and_process_data(metadata_file_path: str) -> pd.DataFrame:
     """Loads data from JSON, analyzes buildings using BuildingAnalyzer, and returns a DataFrame."""
     logger.info(f"Executing load_and_process_data from: {metadata_file_path}")
-    if not os.path.exists(metadata_file_path):
-        st.error(f"Metadata file not found at: {metadata_file_path}")
-        logger.error(f"Metadata file not found at: {metadata_file_path}")
-        return pd.DataFrame() # Return empty DataFrame
+    if not metadata_file_path.startswith("https"):
+        if not os.path.exists(metadata_file_path):
+            st.error(f"Metadata file not found at: {metadata_file_path}")
+            logger.error(f"Metadata file not found at: {metadata_file_path}")
+            return pd.DataFrame() # Return empty DataFrame
 
     try:
         analyzer = BuildingAnalyzer(metadata_file_path)
