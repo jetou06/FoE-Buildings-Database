@@ -21,7 +21,7 @@
     "weights": "Poids",
     "user_context": "Contexte de votre cité",
     "user_context_help": "Entrez la production quotidienne de base de votre cité et vos pourcentages de bonus actuels. Cela permet un calcul précis de la valeur des bâtiments de bonus.",
-    "base_production_section": "Production quotidienne de base",
+    "base_production_section": "Production quotidienne",
     "current_boosts_section": "Vos pourcentages de bonus actuels",
     "efficiency_weights": "Efficacité pondérée",
     "efficiency_help_direct": "Définissez les valeurs en points pour chaque métrique. Entrez combien de points vaut chaque unité de production pour vous. Les bâtiments de bonus (bonus PF, bonus Ressources, etc.) sont automatiquement convertis et ajoutés à leurs valeurs de production de base selon le contexte de votre cité. Le Score Total est calculé en multipliant les valeurs de production améliorées par vos poids en points. L'Efficacité Pondérée est le Score Total divisé par la taille du bâtiment.",
