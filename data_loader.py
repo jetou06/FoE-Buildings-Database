@@ -216,6 +216,13 @@ class BuildingAnalyzer:
                             production[consumables_map[reward_id]] += reward_amount
                         else:
                             other_items_temp.append(reward_lookup.get('name', 'Unknown Consumable'))
+                    elif reward_type == 'set':
+                        reward_id = reward_lookup.get('rewards', [{}])[0].get('id')
+                        if reward_id in consumables_map.keys():
+                            reward_amount = float(reward_amount)
+                            production[consumables_map[reward_id]] += reward_amount
+                        else:
+                            other_items_temp.append(reward_lookup.get('name', 'Unknown Consumable'))
                     elif reward_type in ['good', 'special_goods', 'guild_goods']:
                         if 'Current' in reward_id: 
                             production['goods'] += reward_amount
@@ -292,6 +299,13 @@ class BuildingAnalyzer:
                                     else:
                                         other_items_temp.append(f"{reward_lookup.get('name', 'Unknown Consumable')} ({int(prod_drop_chance*100)}%)")
                                 elif reward_id in consumables_map.keys():
+                                    production[consumables_map[reward_id]] += reward_amount * prod_drop_chance
+                                else:
+                                    other_items_temp.append(f"{reward_lookup.get('name', 'Unknown Consumable')} ({int(prod_drop_chance*100)}%)")
+                            elif reward_type == 'set':
+                                reward_id = reward_lookup.get('rewards', [{}])[0].get('id')
+                                if reward_id in consumables_map.keys():
+                                    reward_amount = float(reward_amount)
                                     production[consumables_map[reward_id]] += reward_amount * prod_drop_chance
                                 else:
                                     other_items_temp.append(f"{reward_lookup.get('name', 'Unknown Consumable')} ({int(prod_drop_chance*100)}%)")
