@@ -54,12 +54,14 @@ cover/
 # Translations
 *.mo
 *.pot
+translations/to_be_translated_building_names.json
 
 # Django stuff:
 *.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+foe_buildings.db
 
 # Flask stuff:
 instance/
