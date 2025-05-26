@@ -346,7 +346,7 @@ def main():
             col1, col2 = st.columns([1, 10])
             with col1:
                 # CSV Export
-                csv = df_display.to_csv(index=False)
+                csv = df_display.to_csv(index=False, sep=";")
                 st.download_button(
                     label=translations.get_text("export_csv", lang_code),
                     data=csv,
