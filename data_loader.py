@@ -380,7 +380,10 @@ class BuildingAnalyzer:
         # Round floats at the end
         for k, v in production.items():
             if isinstance(v, float):
-                production[k] = round(v, 2)
+                if k in consumables_map.values():
+                    production[k] = round(v, 6)
+                else:
+                    production[k] = round(v, 2)
 
         return production
 

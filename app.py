@@ -332,7 +332,7 @@ def main():
                     if col in df_display:
                         # Ensure column is numeric before dividing
                         if pd.api.types.is_numeric_dtype(df_display[col]):
-                            df_display[col] = (df_display[col] / divisor_col).round(2)
+                            df_display[col] = (df_display[col] / divisor_col).round(8)
                         else:
                             logger.warning(f"Column '{col}' intended for per-square calc is not numeric.")
 
