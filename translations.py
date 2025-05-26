@@ -85,6 +85,8 @@ ALL_BUILDING_NAME_TRANSLATIONS = {
     for lang_code in LANGUAGES.values()
 }
 
+TO_BE_TRANSLATED_BUILDING_NAMES = {lang_code: {} for lang_code in LANGUAGES.values()}
+
 def translate_building_name(name: str, lang_code: str) -> str:
     """Translates a building name using pre-loaded dictionaries."""
     translated_name = ALL_BUILDING_NAME_TRANSLATIONS.get(lang_code, {}).get(name)
@@ -96,7 +98,9 @@ def translate_building_name(name: str, lang_code: str) -> str:
         en_translated_name = ALL_BUILDING_NAME_TRANSLATIONS.get('en', {}).get(name)
         if en_translated_name and en_translated_name != name:
             return en_translated_name
-            
+        if name not in TO_BE_TRANSLATED_BUILDING_NAMES[lang_code]:
+            TO_BE_TRANSLATED_BUILDING_NAMES[lang_code][name] = name
+        
     return name # Return original if no valid translation found
 
 # --- Event Translations ---

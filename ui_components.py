@@ -261,10 +261,6 @@ def generate_heatmap_style_js(eff_min: float, eff_max: float) -> JsCode:
         }}
     ''')
 
-# Placeholder for Tooltip JsCode generation (Adapt from original if complex logic needed)
-# def generate_tooltip_js(col_name, lang_code):
-#    pass
-
 # --- AgGrid Configuration Builder ---
 
 def build_grid_options(df_display: pd.DataFrame,
@@ -311,7 +307,7 @@ def build_grid_options(df_display: pd.DataFrame,
         if col == 'Weighted Efficiency' and heatmap_style:
              base_config["cellStyle"] = heatmap_style
 
-        # --- Tooltip Logic (Simplified - using default for now) ---
+        # --- Tooltip Logic ---
         base_config["tooltipValueGetter"] = JsCode(f"""
             function(params) {{
                 return params.colDef.headerName + ': ' + params.valueFormatted;
@@ -332,7 +328,6 @@ def build_grid_options(df_display: pd.DataFrame,
                 }
             )
         else:
-            # Use default header but still enable menu
             base_config["headerComponent"] = 'CustomIconHeader'
             base_config["headerComponentParams"] = {
                 'headerContent': header_name,

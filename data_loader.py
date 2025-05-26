@@ -118,7 +118,9 @@ class BuildingAnalyzer:
             'artillery_units': 0.0, 'light_units': 0.0, 'rogues_units': 0.0,
             'next_age_units_amount': 0.0, 'next_age_units_type': "", 'next_age_fast_units': 0.0,
             'next_age_heavy_units': 0.0, 'next_age_ranged_units': 0.0, 'next_age_artillery_units': 0.0,
-            'next_age_light_units': 0.0,
+            'next_age_light_units': 0.0, 'finish_special_production': 0.0, 'finish_goods_production': 0.0,
+            'store_kit': 0.0, 'mass_self_aid_kit': 0.0, 'self_aid_kit': 0.0, 'renovation_kit': 0.0,
+            'one_up_kit': 0.0, 'finish_all_supplies': 0.0,
             'other_items': [] # Intermediate storage for other items
         }
         prod_map = { # Mapping from JSON keys to production dict keys
@@ -134,6 +136,16 @@ class BuildingAnalyzer:
         unit_type_map = {
             'heavy_melee': "Heavy", 'fast': "Fast", 'short_ranged': "Ranged",
             'long_ranged': "Artillery", 'light_melee': "Light"
+        }
+        consumables_map = {
+            'rush_event_buildings_instant': 'finish_special_production',
+            'rush_goods_buildings_instant': 'finish_goods_production',
+            'store_building': 'store_kit',
+            'mass_self_aid_kit': 'mass_self_aid_kit',
+            'self_aid_kit': 'self_aid_kit',
+            'renovation_kit': 'renovation_kit',
+            'one_up_kit': 'one_up_kit',
+            'rush_mass_supplies_24h': 'finish_all_supplies'
         }
         units = {'Fast': 0.0, 'Heavy': 0.0, 'Light': 0.0, 'Ranged': 0.0, 'Artillery': 0.0}
         next_age_units = {'Fast': 0.0, 'Heavy': 0.0, 'Light': 0.0, 'Ranged': 0.0, 'Artillery': 0.0}
@@ -192,7 +204,18 @@ class BuildingAnalyzer:
                     reward_amount = float(reward_lookup.get('totalAmount', reward_lookup.get('amount', reward_lookup.get('totalAmount', 0))))
 
                     if reward_type == 'consumable':
-                        other_items_temp.append(reward_lookup.get('name', 'Unknown Consumable'))
+                        reward_subtype = reward_lookup.get('subType')
+                        if reward_subtype == 'fragment':
+                            reward_id = reward_lookup.get('assembledReward', {}).get('id')
+                            if reward_id in consumables_map.keys():
+                                reward_amount = float(reward_amount) / reward_lookup.get('requiredAmount', 1)
+                                production[consumables_map[reward_id]] += reward_amount
+                            else:
+                                other_items_temp.append(reward_lookup.get('name', 'Unknown Consumable'))
+                        elif reward_id in consumables_map.keys():
+                            production[consumables_map[reward_id]] += reward_amount
+                        else:
+                            other_items_temp.append(reward_lookup.get('name', 'Unknown Consumable'))
                     elif reward_type in ['good', 'special_goods', 'guild_goods']:
                         if 'Current' in reward_id: 
                             production['goods'] += reward_amount
@@ -253,58 +276,74 @@ class BuildingAnalyzer:
                                      elif json_key == 'guild_goods':
                                          guild_goods_temp += float(amount) * prod_drop_chance
                          elif prod_type == 'genericReward':
-                             reward_id = product_data.get('reward', {}).get('id')
-                             reward_lookup = lookup_rewards.get(reward_id)
-                             if not reward_lookup: continue
-                             reward_type = reward_lookup.get('type')
-                             reward_amount = float(reward_lookup.get('totalAmount', reward_lookup.get('amount', 0)))
+                            reward_id = product_data.get('reward', {}).get('id')
+                            reward_lookup = lookup_rewards.get(reward_id)
+                            if not reward_lookup: continue
+                            reward_type = reward_lookup.get('type')
+                            reward_amount = float(reward_lookup.get('totalAmount', reward_lookup.get('amount', reward_lookup.get('totalAmount', 0))))
 
-                             if reward_type == 'consumable':
-                                other_items_temp.append(f"{reward_lookup.get('name', 'Unknown Consumable')} ({int(prod_drop_chance*100)}%)")
-                             elif reward_type in ['good', 'special_goods', 'guild_goods']:
-                                 if 'Current' in reward_id: production['goods'] += reward_amount * prod_drop_chance
-                                 elif 'special' in reward_id: goods_special_temp += reward_amount * prod_drop_chance
-                                 elif 'Next' in reward_id: goods_next_temp += reward_amount * prod_drop_chance
-                                 elif 'Previous' in reward_id: goods_prev_temp += reward_amount * prod_drop_chance
-                                 elif 'guild_goods' in reward_id: guild_goods_temp += reward_amount * prod_drop_chance
-                             elif reward_type == 'unit':
-                                 if component_key == 'AllAge': continue
-                                 is_handled = False
-                                 if "rogue" in reward_id: rogues_temp += reward_amount * prod_drop_chance; is_handled = True
-                                 if not is_handled:
-                                      for unit_json_id, unit_name in unit_type_map.items():
-                                          if unit_json_id in reward_id:
-                                               if "Current" in reward_id: units[unit_name] += reward_amount * prod_drop_chance; is_handled = True; break
-                                               elif "NextEra" in reward_id: next_age_units[unit_name] += reward_amount * prod_drop_chance; is_handled = True; break
-                             elif reward_type == 'chest':
-                                 possible = reward_lookup.get('possible_rewards', [{}])[0]
-                                 first_reward_data = possible.get('reward',{})
-                                 first_reward_amount = float(first_reward_data.get('amount', first_reward_data.get('totalAmount', 0)))
-                                 first_reward_type = first_reward_data.get('type')
-                                 chest_inner_chance = float(possible.get('drop_chance', 100)) / 100.0
-                                 effective_chance = prod_drop_chance * chest_inner_chance
-                                 if ('NextEra' in reward_id or 'next_age' in reward_id) and first_reward_type == 'good':
-                                     goods_next_temp += first_reward_amount * effective_chance
-                                 elif 'next_age_unit' in reward_id:
-                                     for unit_json_id, unit_name in unit_type_map.items():
+                            if reward_type == 'consumable':
+                                reward_subtype = reward_lookup.get('subType')
+                                if reward_subtype == 'fragment':
+                                    reward_id = reward_lookup.get('assembledReward', {}).get('id')
+                                    if reward_id in consumables_map.keys():
+                                        reward_amount = float(reward_amount) / reward_lookup.get('requiredAmount', 1)
+                                        production[consumables_map[reward_id]] += reward_amount * prod_drop_chance
+                                    else:
+                                        other_items_temp.append(f"{reward_lookup.get('name', 'Unknown Consumable')} ({int(prod_drop_chance*100)}%)")
+                                elif reward_id in consumables_map.keys():
+                                    production[consumables_map[reward_id]] += reward_amount * prod_drop_chance
+                                else:
+                                    other_items_temp.append(f"{reward_lookup.get('name', 'Unknown Consumable')} ({int(prod_drop_chance*100)}%)")
+                            elif reward_type in ['good', 'special_goods', 'guild_goods']:
+                                if 'Current' in reward_id: production['goods'] += reward_amount * prod_drop_chance
+                                elif 'special' in reward_id: goods_special_temp += reward_amount * prod_drop_chance
+                                elif 'Next' in reward_id: goods_next_temp += reward_amount * prod_drop_chance
+                                elif 'Previous' in reward_id: goods_prev_temp += reward_amount * prod_drop_chance
+                                elif 'guild_goods' in reward_id: guild_goods_temp += reward_amount * prod_drop_chance
+                            elif reward_type == 'unit':
+                                if component_key == 'AllAge': continue
+                                is_handled = False
+                                if "rogue" in reward_id: rogues_temp += reward_amount * prod_drop_chance; is_handled = True
+                                if not is_handled:
+                                    for unit_json_id, unit_name in unit_type_map.items():
+                                        if unit_json_id in reward_id:
+                                            if "Current" in reward_id: units[unit_name] += reward_amount * prod_drop_chance; is_handled = True; break
+                                            elif "NextEra" in reward_id: next_age_units[unit_name] += reward_amount * prod_drop_chance; is_handled = True; break
+                            elif reward_type == 'chest':
+                                possible = reward_lookup.get('possible_rewards', [{}])[0]
+                                first_reward_data = possible.get('reward',{})
+                                first_reward_amount = float(first_reward_data.get('amount', first_reward_data.get('totalAmount', 0)))
+                                first_reward_type = first_reward_data.get('type')
+                                chest_inner_chance = float(possible.get('drop_chance', 100)) / 100.0
+                                effective_chance = prod_drop_chance * chest_inner_chance
+                                if ('NextEra' in reward_id or 'next_age' in reward_id) and first_reward_type == 'good':
+                                    goods_next_temp += first_reward_amount * effective_chance
+                                elif 'next_age_unit' in reward_id:
+                                    for unit_json_id, unit_name in unit_type_map.items():
                                         if unit_json_id in reward_id or unit_json_id in first_reward_data.get('id',''):
-                                             next_age_units[unit_name] += first_reward_amount * effective_chance; break
-                                 elif 'random_unit' in reward_id:
-                                      for unit_json_id, unit_name in unit_type_map.items():
-                                          if unit_json_id in reward_id or unit_json_id in first_reward_data.get('id',''):
-                                              units[unit_name] += first_reward_amount * effective_chance; break
-                             elif 'forgepoint_package' in reward_id:
+                                            next_age_units[unit_name] += first_reward_amount * effective_chance; break
+                                elif 'random_unit' in reward_id:
+                                    for unit_json_id, unit_name in unit_type_map.items():
+                                        if unit_json_id in reward_id or unit_json_id in first_reward_data.get('id',''):
+                                            units[unit_name] += first_reward_amount * effective_chance; break
+                            elif 'forgepoint_package' in reward_id:
                                 fp_val = 0
                                 if 'large' in reward_id: fp_val = 10
                                 elif 'medium' in reward_id: fp_val = 5
                                 elif 'small' in reward_id: fp_val = 2
                                 production['forgepoint_package'] += fp_val * reward_amount * prod_drop_chance
-
+                            else:
+                                other_items_temp.append(f"{product_data.get('name', 'Unknown Reward')} ({int(prod_drop_chance*100)}%)") 
         # Aggregate temporary values
         production['guild_goods'] += guild_goods_temp
         production['next_age_goods'] += goods_next_temp
         production['prev_age_goods'] += goods_prev_temp
-        production['special_goods'] += goods_special_temp
+        if era_key in ['BronzeAge', 'IronAge', 'HighMiddleAge', 'LateMiddleAge', 'ColonialAge', 'ProgressiveEra', 'IndustrialAge', 'ModernEra', 'PostModernEra', 'ContemporaryEra', 'TomorrowEra', 'FutureEra']:
+            production['next_age_goods'] += production['special_goods']
+            production['special_goods'] = 0
+        else:
+            production['special_goods'] += goods_special_temp
         production['rogues_units'] = rogues_temp
         production['fast_units'] = units['Fast']
         production['heavy_units'] = units['Heavy']

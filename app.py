@@ -5,7 +5,7 @@ import pandas as pd
 import streamlit as st
 from st_aggrid import AgGrid, ColumnsAutoSizeMode, AgGridTheme, GridUpdateMode, DataReturnMode, JsCode
 from st_aggrid.grid_options_builder import GridOptionsBuilder
-import requests as r
+import json
 
 # --- Local Modules Imports ---
 import config
@@ -22,7 +22,7 @@ def main():
     st.set_page_config(
         layout="wide",
         page_title="FoE Building Analyzer",
-        # page_icon="path/to/icon.png" # Optional
+        page_icon=config.APP_ICON 
     )
 
     # --- Language Selection ---
@@ -60,6 +60,9 @@ def main():
         else:
              logger.error("'name' column missing after data load.")
 
+        with open(os.path.join(config.TRANSLATIONS_PATH, "to_be_translated_building_names.json"), "w") as f:
+            json.dump(translations.TO_BE_TRANSLATED_BUILDING_NAMES, f)
+
         # Translate event keys
         if 'Event' in df_original.columns:
             df_original['Event'] = df_original['Event'].map(
@@ -94,7 +97,17 @@ def main():
     st.sidebar.header(translations.get_text("filters", lang_code))
 
     # --- Era Filter ---
-    available_eras = sorted(df_original['Translated Era'].unique())
+    # Get unique raw era keys and sort them according to ERAS_DICT order
+    unique_raw_eras = df_original['Era'].unique()
+    # Create a list of eras in ERAS_DICT order that exist in our data
+    ordered_raw_eras = [era_key for era_key in config.ERAS_DICT.keys() if era_key in unique_raw_eras]
+    # Add any eras that exist in data but not in ERAS_DICT (fallback)
+    missing_eras = [era for era in unique_raw_eras if era not in config.ERAS_DICT.keys()]
+    ordered_raw_eras.extend(sorted(missing_eras))  # Sort missing ones alphabetically as fallback
+    
+    # Translate the ordered era keys to get the properly ordered translated names
+    available_eras = [translations.translate_era_key(era_key, lang_code) for era_key in ordered_raw_eras]
+    
     default_translated_era = translations.translate_era_key("SpaceAgeSpaceHub", lang_code)
     try:
         default_era_index = available_eras.index(default_translated_era)
@@ -145,10 +158,36 @@ def main():
     
     # --- Weights Tab (Process this first) ---
     with tabs[1]:
+        # --- User Context Section ---
+        st.header(translations.get_text("user_context", lang_code))
+        st.markdown(translations.get_text("user_context_help", lang_code))
+        
+        # Create two columns for user context inputs
+        ctx_left_col, ctx_right_col = st.columns(2)
+        
+        user_context = {}
+        context_fields = list(config.USER_CONTEXT_FIELDS.items())
+        mid_point = len(context_fields) // 2
+        
+        for col, fields in [(ctx_left_col, context_fields[:mid_point]), (ctx_right_col, context_fields[mid_point:])]:
+            with col:
+                for field_key, field_config in fields:
+                    user_context[field_key] = st.number_input(
+                        label=translations.get_text(field_config["label_key"], lang_code),
+                        help=translations.get_text(field_config["help_key"], lang_code),
+                        value=float(field_config["default"]),
+                        min_value=0.0,
+                        step=1.0 if field_key in ["fp_daily_production", "medal_production", "special_goods_production", "guild_goods_production"] else 100.0,
+                        key=f"context_{field_key}"
+                    )
+        
+        st.markdown("---")
+        
         # --- Weighting Inputs ---
         st.header(translations.get_text("efficiency_weights", lang_code))
-        st.markdown(translations.get_text("efficiency_help", lang_code))
+        st.markdown(translations.get_text("efficiency_help_direct", lang_code))
         st.markdown("---")
+        
         # Create two columns for better layout
         left_col, right_col = st.columns(2)
         
@@ -161,20 +200,30 @@ def main():
                 for group_key, group_info in groups:
                     # Find weightable columns within this group that exist in the data
                     cols_in_group = group_info["columns"]
-                    sliders_to_create = []
+                    inputs_to_create = []
                     for col_name in cols_in_group:
                         # Check if the column exists in the loaded data
                         if col_name in df_original.columns and col_name in config.WEIGHTABLE_COLUMNS:
                             # Check if the column is numeric before allowing weighting
                             if pd.api.types.is_numeric_dtype(df_original[col_name]):
-                                sliders_to_create.append(col_name)
+                                inputs_to_create.append(col_name)
 
-                    if sliders_to_create:  # Only show expander if there are sliders to create
+                    if inputs_to_create:  # Only show expander if there are inputs to create
                         with st.expander(translations.get_text(group_info["key"], lang_code), expanded=False):
-                            for col_name in sliders_to_create:
-                                user_weights[col_name] = st.slider(
-                                    label=translations.translate_column(col_name, lang_code),
-                                    min_value=0.0, max_value=10.0, value=0.0, step=0.5,
+                            for col_name in inputs_to_create:
+                                # Skip boost metrics as they're now integrated into base metrics
+                                if col_name in config.BOOST_TO_BASE_MAPPING:
+                                    continue
+                                    
+                                help_text = f"Points per {translations.translate_column(col_name, lang_code).lower()}"
+                                
+                                user_weights[col_name] = st.number_input(
+                                    label=f"1 {translations.translate_column(col_name, lang_code)} = ___ Points",
+                                    help=help_text,
+                                    value=0.0,
+                                    min_value=0.0,
+                                    step=0.1,
+                                    format="%.1f",
                                     key=f"weight_{col_name}"
                                 )
     
@@ -200,13 +249,10 @@ def main():
             df_filtered['Total Score'] = 0.0 # Initialize
             any_weight_set = any(w > 0 for w in user_weights.values())
             if any_weight_set and not df_filtered.empty:
-                df_filtered = calculations.calculate_weighted_efficiency(
+                df_filtered = calculations.calculate_direct_weighted_efficiency(
                     df=df_filtered,
                     user_weights=user_weights,
-                    era_stats_df=era_stats_df,
-                    df_original=df_original, # Pass original for mapping
-                    selected_translated_era=selected_translated_era,
-                    lang_code=lang_code
+                    user_context=user_context
                 )
             elif not df_filtered.empty:
                 logger.debug("Skipping efficiency calculation as no weights > 0 are set.")

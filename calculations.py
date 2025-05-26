@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 
 # Import configurations and logger
-from config import WEIGHTABLE_COLUMNS, logger
+from config import WEIGHTABLE_COLUMNS, ADDITIVE_METRICS, BOOST_TO_BASE_MAPPING, USER_CONTEXT_FIELDS, logger
 from translations import translate_era_key # Needed for reverse mapping
 
 # --- Era Statistics Calculation --- (Cached in calling function)
@@ -32,111 +32,114 @@ def calculate_era_stats(df: pd.DataFrame) -> pd.DataFrame:
         logger.error(f"Error calculating era statistics: {e}", exc_info=True)
         return pd.DataFrame() # Return empty on error
 
-# --- Weighted Efficiency Calculation ---
-def calculate_weighted_efficiency(df: pd.DataFrame, user_weights: Dict[str, float], era_stats_df: pd.DataFrame, df_original: pd.DataFrame, selected_translated_era: str, lang_code: str) -> pd.DataFrame:
-    """Calculates the weighted efficiency score based on user weights and era stats."""
-    logger.info(f"Calculating weighted efficiency for {len(df)} buildings in era '{selected_translated_era}'")
+# --- Direct Weighted Sum Calculation ---
+def apply_boosts_to_base_metrics(building_row: pd.Series, user_context: Dict[str, float]) -> pd.Series:
+    """Apply boost values directly to their corresponding base metrics."""
+    # Create a copy to avoid modifying the original
+    enhanced_row = building_row.copy()
+    
+    for boost_metric, base_metric_or_list in BOOST_TO_BASE_MAPPING.items():
+        if boost_metric in building_row and building_row[boost_metric] > 0:
+            boost_percentage = building_row[boost_metric]
+            
+            if boost_metric == "FP boost":
+                context_key = "fp_daily_production"
+                if context_key in user_context:
+                    boost_equivalent = boost_percentage * user_context[context_key] / 100
+                    current_base = enhanced_row.get(base_metric_or_list, 0)
+                    enhanced_row[base_metric_or_list] = current_base + boost_equivalent
+                    logger.debug(f"Applied {boost_metric} ({boost_percentage}%) to {base_metric_or_list}: +{boost_equivalent:.1f}")
+            
+            elif boost_metric == "Goods Boost":
+                # Goods Boost affects multiple goods types
+                base_metrics = base_metric_or_list  # This is a list
+                context_keys = ["goods_current_production", "goods_previous_production", "goods_next_production"]
+                base_metric_names = ["goods", "prev_age_goods", "next_age_goods"]
+                
+                for context_key, base_metric in zip(context_keys, base_metric_names):
+                    if context_key in user_context and user_context[context_key] > 0:
+                        boost_equivalent = boost_percentage * user_context[context_key] / 100
+                        current_base = enhanced_row.get(base_metric, 0)
+                        enhanced_row[base_metric] = current_base + boost_equivalent
+                        logger.debug(f"Applied {boost_metric} ({boost_percentage}%) to {base_metric}: +{boost_equivalent:.1f}")
+            
+            elif boost_metric == "Guild Goods Production %":
+                context_key = "guild_goods_production"
+                if context_key in user_context:
+                    boost_equivalent = boost_percentage * user_context[context_key] / 100
+                    current_base = enhanced_row.get(base_metric_or_list, 0)
+                    enhanced_row[base_metric_or_list] = current_base + boost_equivalent
+                    logger.debug(f"Applied {boost_metric} ({boost_percentage}%) to {base_metric_or_list}: +{boost_equivalent:.1f}")
+            
+            elif boost_metric == "Special Goods Production %":
+                context_key = "special_goods_production"
+                if context_key in user_context:
+                    boost_equivalent = boost_percentage * user_context[context_key] / 100
+                    current_base = enhanced_row.get(base_metric_or_list, 0)
+                    enhanced_row[base_metric_or_list] = current_base + boost_equivalent
+                    logger.debug(f"Applied {boost_metric} ({boost_percentage}%) to {base_metric_or_list}: +{boost_equivalent:.1f}")
+    
+    return enhanced_row
 
-    norm_data = {}
-    weighted_data = {}
-    weighted_cols_list = []
-    valid_weightable_cols = [col for col in WEIGHTABLE_COLUMNS if col in df.columns]
-
-    if 'Era' not in df_original.columns:
-        logger.error("Original DataFrame missing 'Era' column for reverse mapping. Cannot calculate efficiency.")
-        df['Weighted Efficiency'] = -1.0
+def calculate_direct_weighted_efficiency(df: pd.DataFrame, user_weights: Dict[str, float], user_context: Dict[str, float]) -> pd.DataFrame:
+    """Calculate weighted efficiency using direct weighted sum with integrated boosts."""
+    logger.info(f"Calculating direct weighted efficiency for {len(df)} buildings")
+    
+    if df.empty:
+        logger.warning("Empty dataframe provided to calculate_direct_weighted_efficiency")
         return df
-
+    
+    # Initialize columns
+    df['Total Score'] = 0.0
+    df['Weighted Efficiency'] = 0.0
+    
+    # Check if any weights are set
+    any_weight_set = any(w > 0 for w in user_weights.values())
+    if not any_weight_set:
+        logger.info("No weights set, returning zero scores")
+        return df
+    
     try:
-        unique_eras = df_original['Era'].unique()
-        era_key_to_translated = {key: translate_era_key(key, lang_code) for key in unique_eras}
-        translated_to_era_key = {v: k for k, v in era_key_to_translated.items()}
-        raw_era_key = translated_to_era_key.get(selected_translated_era)
-    except Exception as map_e:
-        logger.error(f"Error creating era key mapping: {map_e}")
-        df['Weighted Efficiency'] = -1.0
-        return df
-
-    if not raw_era_key:
-        logger.error(f"Could not find raw era key for selected translated era: '{selected_translated_era}'. Skipping efficiency calculation.")
-        df['Weighted Efficiency'] = -1.0
-        return df
-    elif era_stats_df.empty or raw_era_key not in era_stats_df.index:
-         logger.warning(f"No stats found for raw era key: '{raw_era_key}' in era_stats_df. Skipping efficiency calculation.")
-         df['Weighted Efficiency'] = 0.0
-         return df
-
-    for col in valid_weightable_cols:
-        weight = user_weights.get(col, 0)
-        if weight == 0: continue
-
-        try:
-            # Use 'min' and 'max' from the stats dataframe
-            if (col, 'min') not in era_stats_df.columns or (col, 'max') not in era_stats_df.columns:
-                logger.warning(f"Stats (min/max) not found for column '{col}' in era '{raw_era_key}'. Skipping.")
-                continue
-            norm_min = era_stats_df.loc[raw_era_key, (col, 'min')]
-            norm_max = era_stats_df.loc[raw_era_key, (col, 'max')]
-        except KeyError:
-            logger.warning(f"KeyError accessing stats for era '{raw_era_key}', column '{col}'. Skipping.")
-            continue
-        except Exception as e:
-             logger.error(f"Error looking up stats for era '{raw_era_key}', column '{col}': {e}. Skipping.")
-             continue
-
-        current_norm_col_data = pd.Series(0.0, index=df.index)
-        if pd.isna(norm_min) or pd.isna(norm_max):
-             logger.warning(f"NaN detected for norm_min/norm_max for column '{col}' in era '{raw_era_key}'. Skipping normalization.")
-        elif norm_max > norm_min:
-            # Standard Min-Max normalization
-            current_norm_col_data = (df[col] - norm_min) / (norm_max - norm_min)
-            # Clip to handle potential values outside original min/max if data changes
-            current_norm_col_data = current_norm_col_data.clip(0, 1)
-        elif norm_max == norm_min and norm_max > 0:
-            # If min equals max and is positive, anything positive gets score 1
-            current_norm_col_data = df[col].apply(lambda x: 1.0 if x > 0 else 0.0)
-        # If min == max == 0, score remains 0.0
-
-        norm_data[f"{col}_norm"] = current_norm_col_data
-        weighted_data[f"{col}_weighted"] = current_norm_col_data * weight
-        weighted_cols_list.append(f"{col}_weighted")
-
-    if norm_data:
-         try:
-             norm_df = pd.DataFrame(norm_data, index=df.index)
-             weighted_df = pd.DataFrame(weighted_data, index=df.index)
-             df = pd.concat([df, norm_df, weighted_df], axis=1)
-
-             if weighted_cols_list:
-                  df['Total Score'] = df[weighted_cols_list].sum(axis=1)
-                  # Normalize Total Score to 0-1000 range
-                  min_score = df['Total Score'].min()
-                  max_score = df['Total Score'].max()
-                  if max_score > min_score:  # Avoid division by zero
-                      df['Total Score'] = ((df['Total Score'] - min_score) / (max_score - min_score) * 1000).round(1)
-                  else:
-                      df['Total Score'] = 0  # If all scores are the same
-                  
-                  divisor = df['Nbr of squares (Avg)'].replace(0, 1)
-                  # Calculate Weighted Efficiency
-                  df['Weighted Efficiency'] = (df['Total Score'] / divisor).round(1)
-                  # Remove intermediate columns
-                  cols_to_drop = list(norm_df.columns) + list(weighted_df.columns) # Remove 'Total Score'
-                  existing_cols_to_drop = [c for c in cols_to_drop if c in df.columns]
-                  if existing_cols_to_drop:
-                     df = df.drop(columns=existing_cols_to_drop)
-                  logger.info("Weighted efficiency calculation complete. Retained 'Total Score'.")
-             else:
-                  df['Weighted Efficiency'] = 0.0
-                  df['Total Score'] = 0.0 # Initialize Total Score if no weighted cols
-                  logger.info("No weighted columns generated, Weighted Efficiency and Total Score set to 0.")
-         except Exception as concat_err:
-              logger.error(f"Error during final efficiency calculation/concat: {concat_err}", exc_info=True)
-              df['Weighted Efficiency'] = -1.0
-              df['Total Score'] = -1.0 # Indicate error
-    else:
-         df['Weighted Efficiency'] = 0.0
-         df['Total Score'] = 0.0 # Initialize Total Score if no weights set
-         logger.info("No valid columns to weight or no weights > 0, skipping efficiency calculation.")
-
+        for idx, building_row in df.iterrows():
+            # Apply boosts to base metrics first
+            enhanced_row = apply_boosts_to_base_metrics(building_row, user_context)
+            
+            total_score = 0.0
+            
+            # Process all additive metrics (now including boost-enhanced values)
+            for metric in ADDITIVE_METRICS:
+                if metric in enhanced_row and metric in user_weights:
+                    weight = user_weights.get(metric, 0)
+                    if weight > 0 and pd.notna(enhanced_row[metric]):
+                        contribution = enhanced_row[metric] * weight
+                        total_score += contribution
+                        logger.debug(f"Building {idx}, {metric}: {enhanced_row[metric]:.1f} * {weight} = {contribution:.1f}")
+            
+            # Set total score
+            df.at[idx, 'Total Score'] = round(total_score, 1)
+            
+            # Calculate efficiency (score per tile)
+            building_size = building_row.get('Nbr of squares (Avg)', 1)
+            if building_size > 0:
+                efficiency = total_score / building_size
+                df.at[idx, 'Weighted Efficiency'] = round(efficiency, 1)
+            else:
+                df.at[idx, 'Weighted Efficiency'] = 0.0
+        
+        logger.info("Direct weighted efficiency calculation complete")
+        
+    except Exception as e:
+        logger.error(f"Error in direct weighted efficiency calculation: {e}", exc_info=True)
+        df['Total Score'] = 0.0
+        df['Weighted Efficiency'] = 0.0
+    
     return df
+
+# --- Legacy function for backward compatibility ---
+def calculate_weighted_efficiency(df: pd.DataFrame, user_weights: Dict[str, float], era_stats_df: pd.DataFrame, df_original: pd.DataFrame, selected_translated_era: str, lang_code: str, user_context: Dict[str, float] = None) -> pd.DataFrame:
+    """Legacy wrapper that calls the new direct weighted efficiency calculation."""
+    if user_context is None:
+        # Use default context if none provided
+        user_context = {key: field_config['default'] for key, field_config in USER_CONTEXT_FIELDS.items()}
+    
+    return calculate_direct_weighted_efficiency(df, user_weights, user_context)
