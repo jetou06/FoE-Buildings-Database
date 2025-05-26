@@ -162,7 +162,10 @@ def main():
         st.header(translations.get_text("user_context", lang_code))
         st.markdown(translations.get_text("user_context_help", lang_code))
         
-        # Create two columns for user context inputs
+        # Base Production Section
+        st.subheader(translations.get_text("base_production_section", lang_code))
+        
+        # Create two columns for base production inputs
         ctx_left_col, ctx_right_col = st.columns(2)
         
         user_context = {}
@@ -179,6 +182,30 @@ def main():
                         min_value=0.0,
                         step=1.0 if field_key in ["fp_daily_production", "medal_production", "special_goods_production", "guild_goods_production"] else 100.0,
                         key=f"context_{field_key}"
+                    )
+        
+        # Current Boosts Section
+        st.subheader(translations.get_text("current_boosts_section", lang_code))
+        
+        # Create two columns for boost inputs
+        boost_left_col, boost_right_col = st.columns(2)
+        
+        user_boosts = {}
+        boost_fields = list(config.USER_BOOST_FIELDS.items())
+        boost_mid_point = len(boost_fields) // 2
+        
+        for col, fields in [(boost_left_col, boost_fields[:boost_mid_point]), (boost_right_col, boost_fields[boost_mid_point:])]:
+            with col:
+                for field_key, field_config in fields:
+                    user_boosts[field_key] = st.number_input(
+                        label=translations.get_text(field_config["label_key"], lang_code),
+                        help=translations.get_text(field_config["help_key"], lang_code),
+                        value=float(field_config["default"]),
+                        min_value=0.0,
+                        max_value=1000.0,
+                        step=1.0,
+                        format="%.1f",
+                        key=f"boost_{field_key}"
                     )
         
         st.markdown("---")
@@ -252,7 +279,8 @@ def main():
                 df_filtered = calculations.calculate_direct_weighted_efficiency(
                     df=df_filtered,
                     user_weights=user_weights,
-                    user_context=user_context
+                    user_context=user_context,
+                    user_boosts=user_boosts
                 )
             elif not df_filtered.empty:
                 logger.debug("Skipping efficiency calculation as no weights > 0 are set.")
@@ -369,6 +397,41 @@ def main():
             # --- Display Disclaimer ---
             st.markdown("***")
             st.markdown(translations.get_text("efficiency_disclaimer", lang_code))
+            
+            # --- Credits Section ---
+            st.markdown("***")
+            st.markdown(translations.get_text("credits_title", lang_code))
+            
+            # Create columns for credits layout
+            credits_col1, credits_col2 = st.columns(2)
+            
+            with credits_col1:
+                st.markdown(f"**{translations.get_text('data_sources', lang_code)}**")
+                st.markdown(f"- {translations.get_text('foe_buildings_db', lang_code)}")
+                st.markdown(f"- {translations.get_text('innogames_foe', lang_code)}")
+                
+                st.markdown(f"**{translations.get_text('development_tools', lang_code)}**")
+                st.markdown(f"- [Streamlit](https://streamlit.io/) - {translations.get_text('web_framework', lang_code)}")
+                st.markdown(f"- [AG-Grid](https://www.ag-grid.com/) - {translations.get_text('data_grid', lang_code)}")
+                st.markdown(f"- [Pandas](https://pandas.pydata.org/) - {translations.get_text('data_analysis', lang_code)}")
+            
+            with credits_col2:
+                st.markdown(f"**{translations.get_text('community', lang_code)}**")
+                st.markdown(f"- {translations.get_text('foe_community', lang_code)}")
+                st.markdown(f"- {translations.get_text('beta_testers', lang_code)}")
+                
+                st.markdown(f"**{translations.get_text('special_thanks', lang_code)}**")
+                st.markdown(f"- {translations.get_text('github_contributors', lang_code)}")
+            
+            # Footer
+            st.markdown("---")
+            st.markdown(
+                f"<div style='text-align: center; color: #666; font-size: 0.9em;'>"
+                f"{translations.get_text('made_with_love', lang_code)} | "
+                f"{translations.get_text('not_affiliated', lang_code)}"
+                f"</div>", 
+                unsafe_allow_html=True
+            )
 
         except Exception as e:
             st.error(f"An error occurred during app execution: {str(e)}")

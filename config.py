@@ -188,6 +188,34 @@ USER_CONTEXT_FIELDS = {
     }
 }
 
+# User current boost percentages configuration
+USER_BOOST_FIELDS = {
+    "current_fp_boost": {
+        "label_key": "current_fp_boost_label",
+        "help_key": "current_fp_boost_help",
+        "default": 0.0,
+        "related_context": "fp_daily_production"
+    },
+    "current_goods_boost": {
+        "label_key": "current_goods_boost_label", 
+        "help_key": "current_goods_boost_help",
+        "default": 0.0,
+        "related_context": ["goods_current_production", "goods_previous_production", "goods_next_production"]
+    },
+    "current_guild_goods_boost": {
+        "label_key": "current_guild_goods_boost_label",
+        "help_key": "current_guild_goods_boost_help", 
+        "default": 0.0,
+        "related_context": "guild_goods_production"
+    },
+    "current_special_goods_boost": {
+        "label_key": "current_special_goods_boost_label",
+        "help_key": "current_special_goods_boost_help",
+        "default": 0.0,
+        "related_context": "special_goods_production"
+    }
+}
+
 RANKING_POINTS_PER_RESOURCE = {
     "forge_points": 15,
     "goods": {
