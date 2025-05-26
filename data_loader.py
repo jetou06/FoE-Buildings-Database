@@ -463,9 +463,12 @@ class BuildingAnalyzer:
             error_count = 0
             
             for building_entry in raw_building_data:
-                asset_id = building_entry.get('asset_id', '')
-                building_name = building_entry.get('name', 'Unknown')
                 building_id = building_entry.get('id')
+                # Filter by asset ID
+                if not building_id.startswith(('W_')): # Adjust filter as needed
+                    skipped_asset_id += 1
+                    continue
+                building_name = building_entry.get('name', 'Unknown')
                 building_event_tag = None
                 if building_id in event_building_tag_exceptions.keys():
                     building_event_tag = event_building_tag_exceptions[building_id]
@@ -487,11 +490,6 @@ class BuildingAnalyzer:
                             break
                     if not building_event_tag:
                         building_event_tag = building_id
-
-                # Filter by asset ID
-                if not asset_id.startswith(('W_')): # Adjust filter as needed
-                    skipped_asset_id += 1
-                    continue
 
                 components = building_entry.get('components')
                 if not components or not isinstance(components, dict):
