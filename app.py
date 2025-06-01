@@ -142,14 +142,191 @@ def main():
     show_per_square = st.sidebar.checkbox(translations.get_per_square_text(lang_code), value=False, key="per_square_checkbox")
     enable_heatmap = st.sidebar.checkbox(translations.get_text("enable_heatmap", lang_code), value=True, key="heatmap_checkbox")
 
-    # --- Column Group Selection ---
+    # --- Column Selection ---
     st.sidebar.header(translations.get_text("column_selection", lang_code))
-    selected_group_keys = st.sidebar.multiselect(
-        translations.get_text("select_groups", lang_code),
-        options=list(config.COLUMN_GROUPS.keys()),
-        default=["basic_info"],
-        format_func=lambda key: translations.get_text(key, lang_code)
-    )
+    
+    # Function to check if an icon exists for a column
+    def has_icon(col_name: str) -> bool:
+        return col_name not in config.ICON_EXCLUDED_COLUMNS and ui_components.get_icon_base64(col_name) is not None
+    
+    # Function to create a column checkbox with optional icon
+    def create_column_checkbox(col: str, default_value: bool = False, show_label: bool = False, force_value: bool = None):
+        translated_name = translations.translate_column(col, lang_code)
+        
+        # Use forced value if provided, otherwise use default
+        checkbox_value = force_value if force_value is not None else default_value
+        
+        if has_icon(col):
+            icon_base64 = ui_components.get_icon_base64(col)
+            # Create a compact layout using HTML
+            checkbox_html = f"""
+            <div style="display: flex; align-items: center; margin-bottom: 2px;">
+                <img src="data:image/png;base64,{icon_base64}" 
+                     style="width: 24px; height: 24px; margin-right: 4px;" 
+                     title="{translated_name}">
+                <span style="font-size: 13spx;">{translated_name if show_label else ""}</span>
+            </div>
+            """
+            st.markdown(checkbox_html, unsafe_allow_html=True)
+            return st.checkbox(
+                label=translated_name,
+                value=checkbox_value,
+                key=f"col_select_{col}",
+                help=translated_name,
+                label_visibility="collapsed"
+            )
+        else:
+            # Regular checkbox for columns without icons
+            return st.checkbox(
+                label=translated_name,
+                value=checkbox_value,
+                key=f"col_select_{col}"
+            )
+    
+    selected_columns = ['name']  # Always include name
+    
+    # Default selected columns for basic_info group
+    default_basic_columns = ['Event', 'Weighted Efficiency', 'Total Score', 'size', 'Nbr of squares (Avg)']
+    
+    # Iterate through column groups
+    for group_key, group_info in config.COLUMN_GROUPS.items():
+        group_columns = group_info["columns"]
+        
+        # Filter to only columns that exist in the dataframe OR are virtual columns that will be created
+        virtual_columns = ['Weighted Efficiency', 'Total Score']  # Columns created later in the process
+        available_group_columns = []
+        
+        for col in group_columns:
+            if col in df_original.columns or col in virtual_columns:
+                available_group_columns.append(col)
+        
+        if available_group_columns:  # Only show group if it has available columns
+            # Use expander for each group
+            with st.sidebar.expander(translations.get_text(group_info["key"], lang_code), expanded=(group_key == "basic_info")):
+                
+                # Add "Check All" checkbox for the group
+                check_all_key = f"check_all_{group_key}"
+                
+                # Determine initial state for check all based on defaults
+                if group_key == "basic_info":
+                    initial_check_all = len([col for col in available_group_columns if col in default_basic_columns]) > 0
+                else:
+                    initial_check_all = False
+                
+                # Create check all checkbox
+                col_check_all, col_label = st.columns([0.5, 0.5])
+                with col_check_all:
+                    check_all_state = st.checkbox(
+                        label="Select All",
+                        value=initial_check_all,
+                        key=check_all_key
+                    )
+                
+                
+                # st.markdown("---")  # Separator line
+                
+                # Create columns for better layout within each group
+                if len(available_group_columns) > 6:  # Use three columns if many items
+                    col_left, col_mid, col_right = st.columns(3)
+                    mid_point = len(available_group_columns) // 3
+                    left_cols = available_group_columns[:mid_point+1]
+                    mid_cols = available_group_columns[mid_point+1:mid_point*2+1]
+                    right_cols = available_group_columns[mid_point*2+1:]
+                    
+                    with col_left:
+                        for col in left_cols:
+                            if group_key == "basic_info":
+                                default_value = col in default_basic_columns
+                            else:
+                                default_value = False
+                            
+                            # Force value based on check_all_state, but respect initial defaults
+                            if check_all_state:
+                                force_value = True
+                            elif not initial_check_all and not check_all_state:
+                                force_value = default_value
+                            else:
+                                force_value = None
+                                
+                            if create_column_checkbox(col, default_value, show_label=show_labels, force_value=force_value):
+                                selected_columns.append(col)
+                    
+                    with col_mid:
+                        for col in mid_cols:
+                            if group_key == "basic_info":
+                                default_value = col in default_basic_columns
+                            else:
+                                default_value = False
+                                
+                            # Force value based on check_all_state, but respect initial defaults
+                            if check_all_state:
+                                force_value = True
+                            elif not initial_check_all and not check_all_state:
+                                force_value = default_value
+                            else:
+                                force_value = None
+                                
+                            if create_column_checkbox(col, default_value, show_label=show_labels, force_value=force_value):
+                                selected_columns.append(col)
+                    
+                    with col_right:
+                        for col in right_cols:
+                            if group_key == "basic_info":
+                                default_value = col in default_basic_columns
+                            else:
+                                default_value = False
+                                
+                            # Force value based on check_all_state, but respect initial defaults
+                            if check_all_state:
+                                force_value = True
+                            elif not initial_check_all and not check_all_state:
+                                force_value = default_value
+                            else:
+                                force_value = None
+                                
+                            if create_column_checkbox(col, default_value, show_label=show_labels, force_value=force_value):
+                                selected_columns.append(col)
+                else:
+                    # Two-column layout for smaller groups
+                    col_left, col_right = st.columns(2)
+                    
+                    with col_left:
+                        for col in available_group_columns[:len(available_group_columns)//2]:
+                            if group_key == "basic_info":
+                                default_value = col in default_basic_columns
+                            else:
+                                default_value = False
+                                
+                            # Force value based on check_all_state, but respect initial defaults
+                            if check_all_state:
+                                force_value = True
+                            elif not initial_check_all and not check_all_state:
+                                force_value = default_value
+                            else:
+                                force_value = None
+                                
+                            if create_column_checkbox(col, default_value, show_label=show_labels, force_value=force_value):
+                                selected_columns.append(col)
+                    
+                    with col_right:
+                        for col in available_group_columns[len(available_group_columns)//2:]:
+                            if group_key == "basic_info":
+                                default_value = col in default_basic_columns
+                            else:
+                                default_value = False
+                                
+                            # Force value based on check_all_state, but respect initial defaults
+                            if check_all_state:
+                                force_value = True
+                            elif not initial_check_all and not check_all_state:
+                                force_value = default_value
+                            else:
+                                force_value = None
+
+                            if create_column_checkbox(col, default_value, show_label=show_labels, force_value=force_value):
+                                selected_columns.append(col)
+
+                    
 
     # --- Initialize Weights ---
     # Initialize weights dictionary before tabs
@@ -289,21 +466,12 @@ def main():
             # If df_filtered is empty, WE column remains 0.0
 
             # --- Prepare Display Columns ---
-            selected_columns = ['name']  # Start with name
+            # selected_columns already contains the user's individual column selections
             
-            # Add columns from selected groups
-            for group_key in selected_group_keys:
-                group_columns = config.COLUMN_GROUPS[group_key]["columns"]
-                selected_columns.extend(group_columns)
-
             # Filter columns that exist in the filtered dataframe
             existing_columns_for_display = []
             
-            # Always include name first if it exists
-            if 'name' in df_filtered.columns:
-                existing_columns_for_display.append('name')
-            
-            # Add other columns in order
+            # Process selected columns in the order they were selected
             for col in selected_columns:
                 if col in df_filtered.columns and col not in existing_columns_for_display:
                     existing_columns_for_display.append(col)
@@ -359,14 +527,14 @@ def main():
             col1, col2 = st.columns([1, 10])
             with col1:
                 # CSV Export with proper UTF-8 encoding and BOM
-                buffer = BytesIO()
+                buffer_csv = BytesIO()
                 # Add UTF-8 BOM manually
-                buffer.write('\ufeff'.encode('utf-8'))
+                buffer_csv.write('\ufeff'.encode('utf-8'))
                 # Write CSV data with translated column names
                 csv_string = df_export.to_csv(index=False, sep=";")
-                buffer.write(csv_string.encode('utf-8'))
-                buffer.seek(0)
-                csv_data = buffer.getvalue()
+                buffer_csv.write(csv_string.encode('utf-8'))
+                buffer_csv.seek(0)
+                csv_data = buffer_csv.getvalue()
                 
                 st.download_button(
                     label=translations.get_text("export_csv", lang_code),
@@ -376,13 +544,15 @@ def main():
                     key="export_csv"
                 )
             with col2:
-                # JSON Export with translated column names
-                json_str = df_export.to_json(orient="records", date_format="iso")
+                # JSON Export with translated column names and proper UTF-8 encoding
+                json_string = df_export.to_json(orient="records", date_format="iso", force_ascii=False)
+                json_data = json_string.encode('utf-8')
+                
                 st.download_button(
                     label=translations.get_text("export_json", lang_code),
-                    data=json_str,
+                    data=json_data,
                     file_name=f"foe_buildings_{selected_translated_era}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json",
-                    mime="application/json",
+                    mime="application/json; charset=utf-8",
                     key="export_json"
                 )
 
@@ -396,8 +566,8 @@ def main():
                 eff_max=eff_max
             )
 
-            # --- Create a dynamic key to force re-render and auto-sizing ---
-            grid_key = f"building_grid_{selected_translated_era}_{name_filter}_{any_weight_set}_{show_per_square}_{lang_code}_{'_'.join(sorted(selected_group_keys))}"
+            # --- Create a dynamic key to force re-render and auto-sizing when switching language ---
+            grid_key = f"building_grid_{lang_code}"
             logger.debug(f"Using AgGrid key: {grid_key}")
 
             grid_return = AgGrid(
@@ -408,7 +578,7 @@ def main():
                 theme=AgGridTheme.STREAMLIT,
                 height=800,
                 width='100%',
-                reload_data=True,
+                reload_data=False,
                 key=grid_key,
                 update_mode=GridUpdateMode.MODEL_CHANGED,
                 data_return_mode=DataReturnMode.AS_INPUT,
