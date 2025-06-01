@@ -68,5 +68,8 @@
     "banamangas_thanks": "Born to be a Banana for maintaining the buildings database",
     "github_contributors": "All GitHub contributors and supporters",
     "made_with_love": "Made with ❤️ by Born to be a Banana (FR12 - Mount Killmore)",
-    "not_affiliated": "Not affiliated with InnoGames"
+    "not_affiliated": "Not affiliated with InnoGames",
+    "hide_zero_production": "Hide zero-value buildings",
+    "hide_zero_production_help": "Hide buildings that have zero values in all selected columns (except basic info)",
+    "zero_production_filter_info": "🔍 {count} buildings which had zero values in all selected columns were hidden from the display."
 }

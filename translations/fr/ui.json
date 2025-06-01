@@ -66,7 +66,10 @@
     "translators": "Traducteurs de la communauté",
     "special_thanks": "Remerciements Spéciaux",
     "banamangas_thanks": "Born to be a Banana pour maintenir la base de données des bâtiments",
-    "github_contributors": "Tous les contributeurs GitHub et supporters",
+    "github_contributors": "Tous les contributeurs et supporters GitHub",
     "made_with_love": "Fait avec ❤️ par Born to be a Banana (FR12 - Mount Killmore)",
-    "not_affiliated": "Non affilié à InnoGames"
+    "not_affiliated": "Non affilié à InnoGames",
+    "hide_zero_production": "Masquer les bâtiments avec des valeurs nulles dans toutes les colonnes sélectionnées",
+    "hide_zero_production_help": "Masquer les bâtiments qui ont des valeurs nulles dans toutes les colonnes sélectionnées (sauf les colonnes d'infos de base)",
+    "zero_production_filter_info": "🔍 {count} bâtiments n'ayant que des valeurs nulles dans les colonnes sélectionnées ont été masqués de l'affichage."
 }

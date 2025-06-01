@@ -325,7 +325,8 @@ def build_grid_options(df_display: pd.DataFrame,
                     'headerContent': icon_html,
                     'enableFilter': True,
                     'enableSorting': True
-                }
+                },
+                width=80
             )
         else:
             base_config["headerComponent"] = 'CustomIconHeader'

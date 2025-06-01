@@ -141,6 +141,12 @@ def main():
     show_labels = st.sidebar.checkbox(translations.get_text("show_labels", lang_code), value=False, key="show_labels_checkbox") if use_icons else False
     show_per_square = st.sidebar.checkbox(translations.get_per_square_text(lang_code), value=False, key="per_square_checkbox")
     enable_heatmap = st.sidebar.checkbox(translations.get_text("enable_heatmap", lang_code), value=True, key="heatmap_checkbox")
+    hide_zero_production = st.sidebar.checkbox(
+        translations.get_text("hide_zero_production", lang_code), 
+        value=False, 
+        key="hide_zero_production_checkbox",
+        help=translations.get_text("hide_zero_production_help", lang_code)
+    )
 
     # --- Column Selection ---
     st.sidebar.header(translations.get_text("column_selection", lang_code))
@@ -164,7 +170,7 @@ def main():
                 <img src="data:image/png;base64,{icon_base64}" 
                      style="width: 24px; height: 24px; margin-right: 4px;" 
                      title="{translated_name}">
-                <span style="font-size: 13spx;">{translated_name if show_label else ""}</span>
+                <span style="font-size: 13px;">{translated_name if show_label else ""}</span>
             </div>
             """
             st.markdown(checkbox_html, unsafe_allow_html=True)
@@ -186,7 +192,7 @@ def main():
     selected_columns = ['name']  # Always include name
     
     # Default selected columns for basic_info group
-    default_basic_columns = ['Event', 'Weighted Efficiency', 'Total Score', 'size', 'Nbr of squares (Avg)']
+    default_basic_columns = ['Event', 'Weighted Efficiency', 'Total Score']
     
     # Iterate through column groups
     for group_key, group_info in config.COLUMN_GROUPS.items():
@@ -450,6 +456,25 @@ def main():
             else:
                 logger.warning("Event column is missing from df_filtered")
 
+            # --- Apply Zero-Production Filter ---
+            buildings_filtered_by_zero_production = 0
+            if hide_zero_production:
+                # Get production columns (exclude basic_info group)
+                basic_info_columns = config.COLUMN_GROUPS["basic_info"]["columns"]
+                production_columns = [
+                    col for col in selected_columns 
+                    if col not in basic_info_columns and col in df_filtered.columns
+                    and pd.api.types.is_numeric_dtype(df_filtered[col])
+                ]
+                
+                if production_columns:
+                    # Keep rows where at least one production column has non-zero value
+                    mask = (df_filtered[production_columns] != 0).any(axis=1)
+                    rows_before = len(df_filtered)
+                    df_filtered = df_filtered[mask]
+                    buildings_filtered_by_zero_production = rows_before - len(df_filtered)
+                    logger.info(f"Zero-production filter: {buildings_filtered_by_zero_production} buildings hidden from {production_columns}")
+
             # --- Calculate Weighted Efficiency ---
             df_filtered['Weighted Efficiency'] = 0.0 # Initialize
             df_filtered['Total Score'] = 0.0 # Initialize
@@ -565,6 +590,14 @@ def main():
                 eff_min=eff_min,
                 eff_max=eff_max
             )
+            
+            # --- Display Filter Information ---
+            if hide_zero_production and buildings_filtered_by_zero_production > 0:
+                st.info(
+                    translations.get_text("zero_production_filter_info", lang_code).format(
+                        count=buildings_filtered_by_zero_production
+                    )
+                )
 
             # --- Create a dynamic key to force re-render and auto-sizing when switching language ---
             grid_key = f"building_grid_{lang_code}"
@@ -585,6 +618,7 @@ def main():
                 columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS
             )
 
+            
             # --- Display Disclaimer ---
             st.markdown("***")
             st.markdown(translations.get_text("efficiency_disclaimer", lang_code))
