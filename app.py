@@ -1,5 +1,7 @@
 import logging
 import os
+from io import BytesIO
+from datetime import datetime
 
 import pandas as pd
 import streamlit as st
@@ -342,25 +344,44 @@ def main():
             if pd.isna(eff_min): eff_min = 0
             if pd.isna(eff_max): eff_max = 0
 
+            # --- Prepare Export DataFrame with Translated Column Names ---
+            df_export = df_display.copy()
+            # Create mapping of original to translated column names
+            column_translation_map = {
+                col: translations.translate_column(col, lang_code) 
+                for col in df_export.columns
+            }
+            # Rename columns to translated names
+            df_export.rename(columns=column_translation_map, inplace=True)
+            logger.info(f"Column translations for export: {column_translation_map}")
+
             # --- Export Buttons ---
             col1, col2 = st.columns([1, 10])
             with col1:
-                # CSV Export
-                csv = df_display.to_csv(index=False, sep=";")
+                # CSV Export with proper UTF-8 encoding and BOM
+                buffer = BytesIO()
+                # Add UTF-8 BOM manually
+                buffer.write('\ufeff'.encode('utf-8'))
+                # Write CSV data with translated column names
+                csv_string = df_export.to_csv(index=False, sep=";")
+                buffer.write(csv_string.encode('utf-8'))
+                buffer.seek(0)
+                csv_data = buffer.getvalue()
+                
                 st.download_button(
                     label=translations.get_text("export_csv", lang_code),
-                    data=csv,
-                    file_name=f"foe_buildings_{selected_translated_era}.csv",
-                    mime="text/csv",
+                    data=csv_data,
+                    file_name=f"foe_buildings_{selected_translated_era}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv",
+                    mime="text/csv; charset=utf-8",
                     key="export_csv"
                 )
             with col2:
-                # JSON Export
-                json_str = df_display.to_json(orient="records", date_format="iso")
+                # JSON Export with translated column names
+                json_str = df_export.to_json(orient="records", date_format="iso")
                 st.download_button(
                     label=translations.get_text("export_json", lang_code),
                     data=json_str,
-                    file_name=f"foe_buildings_{selected_translated_era}.json",
+                    file_name=f"foe_buildings_{selected_translated_era}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json",
                     mime="application/json",
                     key="export_json"
                 )
