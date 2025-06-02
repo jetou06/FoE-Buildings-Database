@@ -23,7 +23,7 @@ def main():
     # --- Page Config ---
     st.set_page_config(
         layout="wide",
-        page_title="FoE Building Analyzer",
+        page_title="FoE Building Database",
         page_icon=config.APP_ICON 
     )
 
@@ -618,7 +618,6 @@ def main():
                 columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS
             )
 
-            
             # --- Display Disclaimer ---
             st.markdown("***")
             st.markdown(translations.get_text("efficiency_disclaimer", lang_code))

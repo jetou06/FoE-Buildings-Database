@@ -16,7 +16,7 @@ A comprehensive web application for analyzing and comparing buildings from Forge
 - **Weighted Efficiency Calculator**: Calculate building efficiency based on your personal preferences
 - **City Context Integration**: Input your city's production to accurately value boost buildings
 - **Direct Weighted Sum**: No arbitrary normalization - uses real production values
-- **Boost Integration**: Automatically converts boost percentages to equivalent production values
+- **Boost Integration**: Automatically converts boost percentages to equivalent production values, and applies them to the building's base production
 - **Per-Square Analysis**: View all metrics normalized per building tile
 
 ### User Interface

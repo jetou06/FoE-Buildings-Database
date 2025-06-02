@@ -34,15 +34,84 @@ def calculate_era_stats(df: pd.DataFrame) -> pd.DataFrame:
 
 # --- Direct Weighted Sum Calculation ---
 def apply_boosts_to_base_metrics(building_row: pd.Series, user_context: Dict[str, float], user_boosts: Dict[str, float]) -> pd.Series:
-    """Apply boost values directly to their corresponding base metrics.
+    """
+    Apply user's city boosts and building's own boosts to the building's base production values.
     
-    First, calculate the true base production from user's current boosted production.
-    Then apply the building's boost values on top of the true base production.
+    Both user city boosts and building self-boosts are applied to the original base production values.
+    This ensures accurate calculation where a building that provides both production and boost
+    has both effects properly calculated from the base values.
     """
     # Create a copy to avoid modifying the original
     enhanced_row = building_row.copy()
     
-    # Calculate true base production values from user's current boosted production
+    # Store original base production values
+    original_base_values = {
+        "forge_points": building_row.get("forge_points", 0),
+        "goods": building_row.get("goods", 0),
+        "prev_age_goods": building_row.get("prev_age_goods", 0),
+        "next_age_goods": building_row.get("next_age_goods", 0),
+        "guild_goods": building_row.get("guild_goods", 0),
+        "special_goods": building_row.get("special_goods", 0)
+    }
+    
+    # Calculate combined boost percentages (user city boost + building self-boost)
+    combined_boosts = {}
+    
+    # FP boost calculation
+    user_fp_boost = user_boosts.get("current_fp_boost", 0)
+    building_fp_boost = building_row.get("FP boost", 0)
+    combined_boosts["fp"] = user_fp_boost + building_fp_boost
+    
+    # Goods boost calculation  
+    user_goods_boost = user_boosts.get("current_goods_boost", 0)
+    building_goods_boost = building_row.get("Goods Boost", 0)
+    combined_boosts["goods"] = user_goods_boost + building_goods_boost
+    
+    # Guild Goods boost calculation
+    user_guild_goods_boost = user_boosts.get("current_guild_goods_boost", 0)
+    building_guild_goods_boost = building_row.get("Guild Goods Production %", 0)
+    combined_boosts["guild_goods"] = user_guild_goods_boost + building_guild_goods_boost
+    
+    # Special Goods boost calculation
+    user_special_goods_boost = user_boosts.get("current_special_goods_boost", 0)
+    building_special_goods_boost = building_row.get("Special Goods Production %", 0)
+    combined_boosts["special_goods"] = user_special_goods_boost + building_special_goods_boost
+    
+    # Apply combined boosts to original base values
+    
+    # Apply FP boost
+    if combined_boosts["fp"] > 0:
+        fp_multiplier = 1 + (combined_boosts["fp"] / 100)
+        if "forge_points" in enhanced_row:
+            enhanced_row["forge_points"] = original_base_values["forge_points"] * fp_multiplier
+            logger.debug(f"Applied combined FP boost ({combined_boosts['fp']}% = {user_fp_boost}% user + {building_fp_boost}% building) to base FP production: {original_base_values['forge_points']:.1f} -> {enhanced_row['forge_points']:.1f}")
+        
+    # Apply Goods boost
+    if combined_boosts["goods"] > 0:
+        goods_multiplier = 1 + (combined_boosts["goods"] / 100)
+        goods_columns = ["goods", "prev_age_goods", "next_age_goods"]
+        
+        for goods_col in goods_columns:
+            if goods_col in enhanced_row:
+                enhanced_row[goods_col] = original_base_values[goods_col] * goods_multiplier
+                logger.debug(f"Applied combined Goods boost ({combined_boosts['goods']}% = {user_goods_boost}% user + {building_goods_boost}% building) to base {goods_col} production: {original_base_values[goods_col]:.1f} -> {enhanced_row[goods_col]:.1f}")
+    
+    # Apply Guild Goods boost
+    if combined_boosts["guild_goods"] > 0:
+        guild_goods_multiplier = 1 + (combined_boosts["guild_goods"] / 100)
+        if "guild_goods" in enhanced_row:
+            enhanced_row["guild_goods"] = original_base_values["guild_goods"] * guild_goods_multiplier
+            logger.debug(f"Applied combined Guild Goods boost ({combined_boosts['guild_goods']}% = {user_guild_goods_boost}% user + {building_guild_goods_boost}% building) to base guild goods production: {original_base_values['guild_goods']:.1f} -> {enhanced_row['guild_goods']:.1f}")
+    
+    # Apply Special Goods boost
+    if combined_boosts["special_goods"] > 0:
+        special_goods_multiplier = 1 + (combined_boosts["special_goods"] / 100)
+        if "special_goods" in enhanced_row:
+            enhanced_row["special_goods"] = original_base_values["special_goods"] * special_goods_multiplier
+            logger.debug(f"Applied combined Special Goods boost ({combined_boosts['special_goods']}% = {user_special_goods_boost}% user + {building_special_goods_boost}% building) to base special goods production: {original_base_values['special_goods']:.1f} -> {enhanced_row['special_goods']:.1f}")
+    
+    # STEP 2: Calculate true base production values from user's current boosted production
+    # This is for boost buildings that provide percentage boosts to user context
     true_base_context = {}
     
     # FP: true_base = current_production / (1 + current_boost/100)
@@ -77,7 +146,8 @@ def apply_boosts_to_base_metrics(building_row: pd.Series, user_context: Dict[str
     else:
         true_base_context["special_goods_production"] = user_context.get("special_goods_production", 0)
     
-    # Now apply building boosts on top of true base production
+    # STEP 3: Apply building boosts to user context (for boost buildings)
+    # This handles boost buildings (buildings that provide percentage boosts to the user's daily production)
     for boost_metric, base_metric_or_list in BOOST_TO_BASE_MAPPING.items():
         if boost_metric in building_row and building_row[boost_metric] > 0:
             boost_percentage = building_row[boost_metric]
