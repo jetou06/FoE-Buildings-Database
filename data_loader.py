@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 import logging
 import os
@@ -115,7 +116,7 @@ class BuildingAnalyzer:
             'coins': 0.0, 'supplies': 0.0, 'medals': 0.0, 'forge_points': 0.0, 'forgepoint_package': 0.0,
             'goods': 0.0, 'next_age_goods': 0.0, 'prev_age_goods': 0.0, 'special_goods': 0.0, 'guild_goods': 0.0,
             'units_amount': 0.0, 'units_type': "", 'fast_units': 0.0, 'heavy_units': 0.0, 'ranged_units': 0.0,
-            'artillery_units': 0.0, 'light_units': 0.0, 'rogues_units': 0.0,
+            'artillery_units': 0.0, 'light_units': 0.0, 'rogues': 0.0,
             'next_age_units_amount': 0.0, 'next_age_units_type': "", 'next_age_fast_units': 0.0,
             'next_age_heavy_units': 0.0, 'next_age_ranged_units': 0.0, 'next_age_artillery_units': 0.0,
             'next_age_light_units': 0.0, 'finish_special_production': 0.0, 'finish_goods_production': 0.0,
@@ -358,7 +359,7 @@ class BuildingAnalyzer:
             production['special_goods'] = 0
         else:
             production['special_goods'] += goods_special_temp
-        production['rogues_units'] = rogues_temp
+        production['rogues'] = rogues_temp
         production['fast_units'] = units['Fast']
         production['heavy_units'] = units['Heavy']
         production['ranged_units'] = units['Ranged']
@@ -493,12 +494,12 @@ class BuildingAnalyzer:
                     for tag in event_tags.keys():
                         if tag in building_id and tag not in ["COP", "Expedition"]:
                             if tag != "GBG":
-                                for v in [18,19,20,21,22,23,24,25,26,27,28,29,30]:
+                                for v in range((datetime.now().year + 2) % 100, 17, -1):
                                     if f"{v}" in building_id:
                                         building_event_tag = event_tags[tag] + f" 20{v}"
                                         break
                             elif tag == "GBG":
-                                for v in [23,24,25,26,27,28,29,30]:
+                                for v in range((datetime.now().year + 2) % 100, 22, -1):
                                     if f"{v}" in building_id:
                                         building_event_tag = event_tags[tag] + f" 20{v}"
                                         break

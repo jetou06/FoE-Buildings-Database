@@ -19,14 +19,16 @@
     "W_MultiAge_FALL23D2": "Fall event 2024",
     "W_MultiAge_FALL23E2": "Fall event 2024",
     "W_MultiAge_FALL23F2": "Fall event 2024",
-    "W_MultiAge_HistoricalAlliesStarter24A": "Starter HA Building",
-    "W_MultiAge_SPR21A10": "Dummy building",
-    "W_MultiAge_SPR21A11": "Dummy building",
-    "W_MultiAge_SPR21A12": "Dummy building",
+    "W_MultiAge_HistoricalAlliesStarter24A": "No event",
+    "W_MultiAge_SPR21A10": "No event",
+    "W_MultiAge_SPR21A11": "No event",
+    "W_MultiAge_SPR21A12": "No event",
     "W_AllAge_CupBonus1": "No event",
     "W_AllAge_CupBonus2": "No event",
     "W_AllAge_EasterBonus1": "No event",
     "W_AllAge_EasterBonus1Small": "No event",
     "W_AllAge_ShahBonus17": "No event",
-    "W_MultiAge_TEMP24WW": "Care event 2024"
+    "W_MultiAge_TEMP24WW": "Care event 2024",
+    "W_MultiAge_CARE24A10": "Care event 2025",
+    "W_MultiAge_CARE24A11": "Care event 2025"
 }

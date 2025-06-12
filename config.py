@@ -55,7 +55,8 @@ WEIGHTABLE_COLUMNS = [
     "Red GBG Attack", "Red GBG Defense", "Blue GBG Attack", "Blue GBG Defense",
     "Red GE Attack", "Red GE Defense", "Blue GE Attack", "Blue GE Defense",
     "Red QI Attack", "Red QI Defense", "Blue QI Attack", "Blue QI Defense",
-    "QI Coin %", "QI Coin at start", "QI Supplies %", "QI Supplies at start", "QI Goods at start", "QI Units at start", "QA per hour"
+    "finish_special_production"
+    # "QI Coin %", "QI Coin at start", "QI Supplies %", "QI Supplies at start", "QI Goods at start", "QI Units at start", "QA per hour"
 ]
 
 # Define column groups (moved from app logic)
