@@ -473,7 +473,7 @@ def main():
             building_asset_id = building_data.get('asset_id')
             if building_asset_id and cached_image_manager.has_image(building_asset_id):
                 # Layout with table on left and image on right
-                table_col, img_col = st.columns([1, 3])
+                table_col, img_col = st.columns([2, 4])
                 
                 with table_col:
                     if stats_data:
