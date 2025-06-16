@@ -109,8 +109,8 @@ COLUMN_GROUPS = {
 
 # Columns to exclude from certain operations (like icon loading or per-square calc)
 ICON_EXCLUDED_COLUMNS = {
-    'name', 'Event', 'Translated Era', 'Total Score',
-    'Unit type', 'Next Age Unit type', 'Other productions',
+    'name', 'Translated Era', 'Total Score',
+    'Unit type', 'Next Age Unit type',
     'Weighted Efficiency'
 }
 
