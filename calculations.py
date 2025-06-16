@@ -24,7 +24,7 @@ def calculate_era_stats(df: pd.DataFrame) -> pd.DataFrame:
 
     try:
         # Use standard min and max aggregation
-        stats = df.groupby('Era')[cols_to_agg].agg(['min', 'max'])
+        stats = df.groupby('Era', observed=False)[cols_to_agg].agg(['min', 'max'])
 
         logger.info("Era statistics (min/max) calculation complete.")
         return stats
