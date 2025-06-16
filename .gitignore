@@ -55,6 +55,7 @@ cover/
 *.mo
 *.pot
 translations/to_be_translated_building_names.json
+video_script.md
 
 # Django stuff:
 *.log

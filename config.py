@@ -2,7 +2,7 @@ import logging
 
 # --- Logging Setup ---
 # Basic configuration (can be customized further if needed)
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s - %(filename)s - %(lineno)d')
 logger = logging.getLogger(__name__)
 # Optional: Add file handler if persistent logging is desired outside Streamlit console
 # logfile = logging.FileHandler('logfile.log')
