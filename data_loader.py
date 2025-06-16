@@ -121,7 +121,7 @@ class BuildingAnalyzer:
             'next_age_heavy_units': 0.0, 'next_age_ranged_units': 0.0, 'next_age_artillery_units': 0.0,
             'next_age_light_units': 0.0, 'finish_special_production': 0.0, 'finish_goods_production': 0.0,
             'store_kit': 0.0, 'mass_self_aid_kit': 0.0, 'self_aid_kit': 0.0, 'renovation_kit': 0.0,
-            'one_up_kit': 0.0, 'finish_all_supplies': 0.0,
+            'one_up_kit': 0.0, 'finish_all_supplies': 0.0, 'diamonds': 0.0,'blueprints': 0.0,
             'other_items': [] # Intermediate storage for other items
         }
         prod_map = { # Mapping from JSON keys to production dict keys
@@ -167,7 +167,7 @@ class BuildingAnalyzer:
                 if not isinstance(option, dict): continue
                 option_type = option.get('type')
                 # Drop chance default 1.0 for non-random base items, use actual if present
-                drop_chance = float(option.get("dropChance", 1.0) if option_type != 'random' else 1.0)
+                prod_drop_chance = float(option.get("dropChance", 1.0) if option_type != 'random' else 1.0)
 
                 if option_type == 'resources':
                     resources = option.get('playerResources', {}).get('resources', {})
@@ -216,14 +216,14 @@ class BuildingAnalyzer:
                         elif reward_id in consumables_map.keys():
                             production[consumables_map[reward_id]] += reward_amount
                         else:
-                            other_items_temp.append(reward_lookup.get('name', 'Unknown Consumable'))
+                            other_items_temp.append(f"{reward_lookup.get('name', 'Unknown Consumable')} ({int(prod_drop_chance*100)}%)")
                     elif reward_type == 'set':
                         reward_id = reward_lookup.get('rewards', [{}])[0].get('id')
                         if reward_id in consumables_map.keys():
                             reward_amount = float(reward_amount)
                             production[consumables_map[reward_id]] += reward_amount
                         else:
-                            other_items_temp.append(reward_lookup.get('name', 'Unknown Consumable'))
+                            other_items_temp.append(f"{reward_lookup.get('name', 'Unknown Consumable')} ({int(prod_drop_chance*100)}%)")
                     elif reward_type in ['good', 'special_goods', 'guild_goods']:
                         if 'Current' in reward_id: 
                             production['goods'] += reward_amount
@@ -482,6 +482,7 @@ class BuildingAnalyzer:
             
             for building_entry in raw_building_data:
                 building_id = building_entry.get('id')
+                building_asset_id = building_entry.get('asset_id')
                 # Filter by asset ID
                 if not building_id.startswith(('W_')): # Adjust filter as needed
                     skipped_asset_id += 1
@@ -539,6 +540,7 @@ class BuildingAnalyzer:
                         # Combine all data into a single dictionary
                         building_dict = {
                             "id": building_id,
+                            "asset_id": building_asset_id,
                             "name": building_name,
                             "Event": building_event_tag,
                             "Era": era_key, # Store raw key for later translation/grouping
@@ -619,7 +621,7 @@ class BuildingAnalyzer:
             # Ensure numeric columns that should be numeric are
             numeric_cols_to_check = [
                  col for col in self.df.columns
-                 if col not in ['id', 'Event', 'name', 'Era', 'size', 'Road', 'Limited', 'Ally room', 'Unit type', 'Next Age Unit type', 'Other productions']
+                 if col not in ['id','asset_id', 'Event', 'name', 'Era', 'size', 'Road', 'Limited', 'Ally room', 'Unit type', 'Next Age Unit type', 'Other productions']
             ]
             for col in numeric_cols_to_check:
                  if col in self.df.columns:
