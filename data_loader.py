@@ -256,7 +256,7 @@ class BuildingAnalyzer:
                                 next_age_units[unit_name] += first_reward_amount * possible.get('drop_chance', 100) / 100.0
                         elif 'random_unit' in reward_id:
                              for unit_json_id, unit_name in unit_type_map.items():
-                                units[unit_name] += first_reward_amount * possible.get('drop_chance', 100) / 100.0; break
+                                units[unit_name] += first_reward_amount * possible.get('drop_chance', 100) / 100.0
                     elif 'forgepoint_package' in reward_id:
                         fp_val = 0
                         if 'large' in reward_id: fp_val = 10
