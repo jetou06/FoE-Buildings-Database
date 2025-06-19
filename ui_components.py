@@ -273,7 +273,8 @@ def build_grid_options(df_display: pd.DataFrame,
     """Builds the AgGrid GridOptions dictionary."""
 
     gb = GridOptionsBuilder.from_dataframe(df_display)
-
+    # Allow only 1 selected row at a time
+    gb.configure_selection("single")
     # Register custom header component
     gb.configure_grid_options(components={'CustomIconHeader': CUSTOM_HEADER_COMPONENT})
 

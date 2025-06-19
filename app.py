@@ -398,12 +398,16 @@ def main():
             # Show currently selected era
             st.info(f"📍 {translations.translate_column('Era', lang_code)}: **{selected_translated_era}**", width=300)
 
+            # Initialize session state for selection_building
+            if 'selection_building' not in st.session_state:
+                st.session_state['selection_building'] = 0
+
             # Building selection dropdown (only buildings from selected era)
             building_names = sorted(df_era_filtered['name'].unique())
             selected_building = st.selectbox(
                 label=translations.get_text("select_building", lang_code),
                 options=[""] + building_names,
-                index=0,
+                index=st.session_state['selection_building'],   # Get index form selection_building
                 key="building_selector"
             )
 
@@ -412,7 +416,6 @@ def main():
         # Apply army stats combination if enabled
         if combine_army_stats:
             df_era_filtered = combine_army_with_ge_gbg(df_era_filtered)
-        
         
         
         if selected_building and selected_building != "":
@@ -678,6 +681,10 @@ def main():
                 st.stop()
                 
             df_display = df_filtered[existing_columns_for_display].copy()
+            
+            # Sort dataframe in alphabetical order - required for correspondence with building selection drop-down menu
+            df_display=df_display.sort_values(by='name',ascending=True)
+            
 
             # --- Apply "Per Square" Calculation ---
             if show_per_square and 'Nbr of squares (Avg)' in df_filtered.columns:
@@ -784,6 +791,14 @@ def main():
                 data_return_mode=DataReturnMode.AS_INPUT,
                 columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS
             )
+
+            # Set Building detail listbox
+            builingRows=grid_return.selected_rows                               # Get selected row
+            if builingRows is not None:                                         # if a row is selected
+                buildingIndex=int(builingRows.index[0])+1                       # Get selected row's Index
+                if buildingIndex!=st.session_state['selection_building']:       # if changed
+                    st.session_state['selection_building']  =  buildingIndex    # set to new value
+                    st.rerun()                                                  # refresh : is it a better way to do that ?
 
             # --- Display Disclaimer ---
             st.markdown("***")
