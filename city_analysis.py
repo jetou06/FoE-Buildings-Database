@@ -11,7 +11,7 @@ import calculations
 # Use logger from config
 logger = config.logger
 
-def render_paste_interface(data_type: str, label: str, help_text: str, placeholder_text: str, key: str, lang_code: str) -> Optional[str]:
+def render_paste_interface(data_type: str = "", label: str = "", help_text: str = "", placeholder_text: str = "", key: str = "", lang_code: str = "") -> Optional[str]:
     """Render a paste interface using text area with clear instructions.
     
     Args:
@@ -28,11 +28,11 @@ def render_paste_interface(data_type: str, label: str, help_text: str, placehold
     st.caption(help_text)
     
     # Instructions for the user
-    if data_type == "tsv":
-        st.info(translations.get_text("paste_instructions_tsv", lang_code))
-    else:
-        st.info("📋 Copy your complete city JSON export and paste it below.")
+    st.info(translations.get_text("paste_instructions_tsv", lang_code))
     
+    if data_type == "inventory":
+        st.warning(translations.get_text("inventory_warning", lang_code))
+
     # Text area for pasting
     pasted_data = st.text_area(
         translations.get_text("paste_data_label", lang_code),
@@ -611,7 +611,7 @@ def render_city_analysis_tab(df_original: pd.DataFrame, user_weights: Dict[str, 
             st.code(r"""copy(Object.values(MainParser.Inventory).filter((t=>"InventoryItem"===t.__class__&&"BuildingItemPayload"===t.item.__class__&&t.item.cityEntityId&&["A_","D_","G_","L_","M_","P_","R_","T_","W_","Z_"].some((e=>t.item.cityEntityId.startsWith(e))))).sort(((t,e)=>t.name.localeCompare(e.name))).map((t=>`${t.item.cityEntityId}\t${t.inStock}\t${t.item.level}`)).join("\n"));""", language="javascript", wrap_lines=False)
 
         inventory_data = render_paste_interface(
-            data_type="tsv",
+            data_type="inventory",
             label=translations.get_text("paste_tsv_inventory", lang_code),
             help_text=translations.get_text("tsv_inventory_help", lang_code),
             placeholder_text="W_MultiAge_SummerBonus20\t5\t22\nW_MultiAge_WinterBonus21\t3\t21",
@@ -654,7 +654,7 @@ def render_city_analysis_tab(df_original: pd.DataFrame, user_weights: Dict[str, 
             st.code(r"""copy(Object.entries(Object.values(MainParser.CityMapData).filter(({cityentity_id:c})=>['A_','D_','G_','L_','M_','P_','R_','T_','W_','Z_'].some(p=>c.startsWith(p))).map(({cityentity_id:c,level:l})=>`${((MainParser.CityEntities[c]||{}).cityentity_id||c).replace(/\s*[-–—]\s+Niveau\s*(\d+)/gi,' $1').replace(/ [-–—]\s+Actief/gi,'').replace(/\s*[-–—]\s+Niv\.\s*(\d+)/gi,' $1').replace(/ [-–—]\s+Actief/gi,'').replace(/\s*[-–—]\s+Lv\.\s*(\d+)/gi,' $1').replace(/ [-–—]\s+Active/gi,'').replace(/\s*[-–—]\s+taso\s*(\d+)/gi,' $1').replace(/ [-–—]\s+(aktiivinen|käytössä)/gi,'').replace(/\s*[-–—]\s+Niv\.\s*(\d+)/gi,' $1').replace(/ [-–—]\s+actif/gi,'').replace(/\s*[-–—]\s+St\.\s*(\d+)/gi,' $1').replace(/ [-–—]\s+Aktiv/gi,'').replace(/\s*[-–—]\s+Επ\.\s*(\d+)/gi,' $1').replace(/ [-–—]\s+(Ενεργός|Ενεργό|Ενεργή)/gi,'').replace(/\s*[-–—]\s+szint:?\s*(\d+)/gi,' $1').replace(/\s*[-–—]\s+(\d+)\. szint/gi,' $1').replace(/ [-–—]\s+Aktív/gi,'').replace(/\s*[-–—]\s+Liv\.\s*(\d+)/gi,' $1').replace(/ [-–—]\s+Attivo/gi,'').replace(/\s*[-–—]\s+poz\.\s*(\d+)/gi,' $1').replace(/ [-–—]\s+aktywna/gi,'').replace(/\s*[-–—]\s+(Nv\.|Nivel)\s*(\d+)/gi,' $2').replace(/ [-–—]\s+(Ativo|Ativa)/gi,'').replace(/\s*[-–—]\s+Nvl\s*(\d+)/gi,' $1').replace(/ [-–—]\s+(Ativo|Ativa)/gi,'').replace(/\s*[-–—]\s+ур\.\s*(\d+)/gi,' $1').replace(/ [-–—]\s+(активно|активн.|включено|вкл.)/gi,'').replace(/\s*[-–—]\s+(Nv|Nvl)\.\s*(\d+)/gi,' $2').replace(/ [-–—]\s+Activo/gi,'')}\t${l||'N/A'}`).reduce((a,n)=>(a[n]=(a[n]||0)+1,a),{})).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>`${k}\t${v}`).join('\n'));""", language="javascript", wrap_lines=False)
         
         city_data = render_paste_interface(
-            data_type="tsv",
+            data_type="city",
             label=translations.get_text("paste_tsv_city", lang_code),
             help_text=translations.get_text("tsv_city_help", lang_code),
             placeholder_text="W_MultiAge_SummerBonus20\t21\t5\nW_MultiAge_WinterBonus21\t21\t3",
