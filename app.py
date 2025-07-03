@@ -5,8 +5,9 @@ from datetime import datetime
 
 import pandas as pd
 import streamlit as st
-from st_aggrid import AgGrid, ColumnsAutoSizeMode, AgGridTheme, GridUpdateMode, DataReturnMode, JsCode
+from st_aggrid import AgGrid, ColumnsAutoSizeMode, AgGridTheme, GridUpdateMode, DataReturnMode, JsCode 
 from st_aggrid.grid_options_builder import GridOptionsBuilder
+from streamlit_dynamic_filters import DynamicFilters
 import json
 import numpy as np
 
@@ -20,9 +21,13 @@ import column_selector
 import advanced_filters
 import data_visualizations
 import building_images
+# import qi_optimizer_test
+import city_analysis
 
 # Use logger from config
 logger = config.logger
+
+
 
 def main():
     # --- Page Config ---
@@ -164,6 +169,14 @@ def main():
     # ================== Sidebar Configuration ==================
     st.sidebar.header(translations.get_text("filters", lang_code))
 
+    # --- Advanced Mode Toggle ---
+    advanced_mode = st.sidebar.toggle(
+        "🔧 " + translations.get_text("advanced_mode", lang_code),
+        value=False,
+        key="advanced_mode_toggle",
+        help=translations.get_text("advanced_mode_help", lang_code)
+    )
+
     # --- Era Filter ---
     # Get unique raw era keys and sort them according to ERAS_DICT order
     unique_raw_eras = df_original['Era'].unique()
@@ -195,48 +208,89 @@ def main():
     selected_events = st.sidebar.multiselect(
         label=translations.translate_column("Event", lang_code),
         options=available_events,
+        placeholder=translations.get_text("choose_an_option", lang_code),
         key="event_filter"
     )
 
-    # --- Name Filter ---
-    available_name_filters = sorted(df_original['name'].unique())
-    name_filter = st.sidebar.multiselect(
-        label=translations.get_text("search_label", lang_code),
-        help=translations.get_text("search_help", lang_code),
-        options=available_name_filters,
-        key="name_filter"
-    )
+    # --- Dynamic Name Filter ---
+    # Create a subset dataframe filtered by era and event for the name filter
+    df_for_name_filter = df_original[df_original['Translated Era'] == selected_translated_era].copy()
+    if selected_events:
+        df_for_name_filter = df_for_name_filter[df_for_name_filter['Event'].isin(selected_events)]
+    
+    # Initialize dynamic filters for building names only
+    with st.sidebar:
+        available_name_filters = sorted(df_for_name_filter['name'].unique())
+        name_filter = st.multiselect(
+                label=translations.get_text("search_label", lang_code),
+                options=available_name_filters,
+                placeholder=translations.get_text("choose_an_option", lang_code),
+                key="name_filter_fallback"
+        )
 
     # --- UI Options ---
-    use_icons = st.sidebar.checkbox(translations.get_text("display_icons", lang_code), value=True, key="display_icons_checkbox")
-    show_labels = st.sidebar.checkbox(translations.get_text("show_labels", lang_code), value=False, key="show_labels_checkbox") if use_icons else False
-    show_per_square = st.sidebar.checkbox(translations.get_per_square_text(lang_code), value=False, key="per_square_checkbox")
-    enable_heatmap = st.sidebar.checkbox(translations.get_text("enable_heatmap", lang_code), value=True, key="heatmap_checkbox")
-    hide_zero_production = st.sidebar.checkbox(
-        translations.get_text("hide_zero_production", lang_code), 
-        value=False, 
-        key="hide_zero_production_checkbox",
-        help=translations.get_text("hide_zero_production_help", lang_code)
-    )
-    
-    combine_army_stats = st.sidebar.checkbox(
-        translations.get_text("combine_army_stats", lang_code),
-        value=False,
-        key="combine_army_stats_checkbox",
-        help=translations.get_text("combine_army_stats_help", lang_code)
-    )
+    if advanced_mode:
+        # Full options in advanced mode
+        use_icons = st.sidebar.checkbox(translations.get_text("display_icons", lang_code), value=True, key="display_icons_checkbox")
+        show_labels = st.sidebar.checkbox(translations.get_text("show_labels", lang_code), value=False, key="show_labels_checkbox") if use_icons else False
+        show_per_square = st.sidebar.checkbox("📐 " + translations.get_text("value_per_tile", lang_code), value=False, key="per_square_checkbox")
+        enable_heatmap = st.sidebar.checkbox(translations.get_text("enable_heatmap", lang_code), value=True, key="heatmap_checkbox")
+        hide_zero_production = st.sidebar.checkbox(
+            translations.get_text("hide_zero_production", lang_code), 
+            value=False, 
+            key="hide_zero_production_checkbox",
+            help=translations.get_text("hide_zero_production_help", lang_code)
+        )
+        
+        combine_army_stats = st.sidebar.checkbox(
+            "⚔️ " + translations.get_text("combine_army_stats", lang_code),
+            value=False,
+            key="combine_army_stats_checkbox",
+            help=translations.get_text("combine_army_stats_help", lang_code)
+        )
+    else:
+        # Simplified options in easy mode
+        use_icons = True  # Always use icons in easy mode
+        show_labels = False  # Never show labels in easy mode
+        enable_heatmap = True  # Always enable heatmap in easy mode
+        hide_zero_production = False  # Never hide zero production in easy mode
+        
+        # Only show essential options
+        show_per_square = st.sidebar.checkbox(
+            "📐 " + translations.get_text("value_per_tile", lang_code), 
+            value=False, 
+            key="per_square_checkbox_easy",
+            help=translations.get_text("value_per_tile_help", lang_code)
+        )
+        
+        combine_army_stats = st.sidebar.checkbox(
+            "⚔️ " + translations.get_text("combine_army_stats", lang_code),
+            value=False,
+            key="combine_army_stats_checkbox_easy",
+            help=translations.get_text("combine_army_simple_help", lang_code)
+        )
 
     # --- Advanced Filters ---
-    with st.sidebar:
-        # Apply army stats combination to the dataframe used for filters if enabled
-        df_for_filters = combine_army_with_ge_gbg(df_original) if combine_army_stats else df_original
-        df_filtered_by_advanced = advanced_filters.render_advanced_filters(df_for_filters, lang_code, selected_translated_era)
+    if advanced_mode:
+        with st.sidebar:
+            # Apply army stats combination to the dataframe used for filters if enabled
+            df_for_filters = combine_army_with_ge_gbg(df_original) if combine_army_stats else df_original
+            df_filtered_by_advanced = advanced_filters.render_advanced_filters(df_for_filters, lang_code, selected_translated_era)
+    else:
+        # No advanced filters in easy mode
+        df_filtered_by_advanced = df_original
 
     # --- Enhanced Column Selection ---
     with st.sidebar:
         # Apply army stats combination to the dataframe used for column selection if enabled
         df_for_columns = combine_army_with_ge_gbg(df_original) if combine_army_stats else df_original
-        selected_columns = column_selector.render_enhanced_column_selector(df_for_columns, lang_code)
+        
+        if advanced_mode:
+            # Full column selector with all features in advanced mode
+            selected_columns = column_selector.render_enhanced_column_selector(df_for_columns, lang_code)
+        else:
+            # Simplified column selector in easy mode (no search functionality)
+            selected_columns = column_selector.render_enhanced_column_selector(df_for_columns, lang_code, show_search=False)
 
                     
 
@@ -245,148 +299,41 @@ def main():
     user_weights = {}
     
     # ================== Main Content Area ==================
+    # CSS for larger tab font size
+    st.markdown("""
+    <style>
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 40px;
+    }
+    .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
+        font-size: 1.4rem !important;
+        font-weight: 600 !important;
+        padding-left: 20px !important;
+        padding-right: 20px !important;
+    }
+    .stTabs [data-baseweb="tab-list"] button#tabs-bui90-tab-0 [data-testid="stMarkdownContainer"] p, .stTabs [data-baseweb="tab-list"] button#tabs-bui90-tab-1 [data-testid="stMarkdownContainer"] p {
+        font-size: 1.2rem !important;
+        font-weight: 600 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
     tabs = st.tabs([
-        translations.get_text("home", lang_code), 
-        translations.get_text("weights", lang_code), 
         translations.get_text("building_details", lang_code),
+        translations.get_text("building_analysis", lang_code),
+        translations.get_text("city_analysis", lang_code),
         translations.get_text("visualizations", lang_code)
     ])
     
-    # --- Weights Tab (Process this first) ---
-    with tabs[1]:
-        # Apply the same filtering as the Home tab for consistency
-        df_viz_filtered = df_filtered_by_advanced[df_filtered_by_advanced['Translated Era'] == selected_translated_era].copy()
-        if selected_events:
-            df_viz_filtered = df_viz_filtered[df_viz_filtered['Event'].isin(selected_events)]
-        if name_filter:
-            df_viz_filtered = df_viz_filtered[df_viz_filtered['name'].isin(name_filter)]
-        
-        # Apply army stats combination if enabled
-        if combine_army_stats:
-            df_viz_filtered = combine_army_with_ge_gbg(df_viz_filtered)
-        
-        # Apply zero-production filter if enabled
-        if hide_zero_production:
-            basic_info_columns = config.COLUMN_GROUPS["basic_info"]["columns"]
-            production_columns = [
-                col for col in df_viz_filtered.columns 
-                if col not in basic_info_columns
-                and pd.api.types.is_numeric_dtype(df_viz_filtered[col])
-            ]
-            
-            if production_columns:
-                mask = (df_viz_filtered[production_columns] != 0).any(axis=1)
-                df_viz_filtered = df_viz_filtered[mask]
-        
-        # Calculate efficiency if weights are set
-        if any(w > 0 for w in user_weights.values()) and not df_viz_filtered.empty:
-            df_viz_filtered = calculations.calculate_direct_weighted_efficiency(
-                df=df_viz_filtered,
-                user_weights=user_weights,
-                user_context=user_context,
-                user_boosts=user_boosts
-            )
-        
-        # --- Weighting Inputs ---
-        st.header(translations.get_text("efficiency_weights", lang_code))
-        st.markdown(translations.get_text("efficiency_help_direct", lang_code))
-        st.info(translations.get_text("reminder_city_context", lang_code))
-        st.markdown("---")
-        
-        # Create two columns for better layout
-        left_col, right_col = st.columns(2)
-        
-        # Split the column groups between the two columns
-        column_groups_list = list(config.COLUMN_GROUPS.items())
-        mid_point = len(column_groups_list) // 2
-        
-        for col, groups in [(left_col, column_groups_list[:mid_point]), (right_col, column_groups_list[mid_point:])]:
-            with col:
-                for group_key, group_info in groups:
-                    # Find weightable columns within this group that exist in the data
-                    cols_in_group = group_info["columns"]
-                    inputs_to_create = []
-                    for col_name in cols_in_group:
-                        # Check if the column exists in the loaded data
-                        if col_name in df_original.columns and col_name in config.WEIGHTABLE_COLUMNS:
-                            # Check if the column is numeric before allowing weighting
-                            if pd.api.types.is_numeric_dtype(df_original[col_name]):
-                                inputs_to_create.append(col_name)
-
-                    if inputs_to_create:  # Only show expander if there are inputs to create
-                        with st.expander(translations.get_text(group_info["key"], lang_code), expanded=False):
-                            for col_name in inputs_to_create:
-                                # Skip boost metrics as they're now integrated into base metrics
-                                if col_name in config.BOOST_TO_BASE_MAPPING:
-                                    continue
-                                    
-                                help_text = f"Points per {translations.translate_column(col_name, lang_code).lower()}"
-                                
-                                user_weights[col_name] = st.number_input(
-                                    label=f"1 {translations.translate_column(col_name, lang_code)} = ___ Points",
-                                    help=help_text,
-                                    value=0.0,
-                                    min_value=0.0,
-                                    step=0.1,
-                                    format="%.1f",
-                                    key=f"weight_{col_name}"
-                                )
-        st.markdown("---")
-        # --- User Context Section ---
-        st.header(translations.get_text("user_context", lang_code))
-        st.markdown(translations.get_text("user_context_help", lang_code))
-        
-        # Base Production Section
-        st.subheader(translations.get_text("base_production_section", lang_code))
-        
-        # Create two columns for base production inputs
-        ctx_left_col, ctx_right_col = st.columns(2)
-        
-        user_context = {}
-        context_fields = list(config.USER_CONTEXT_FIELDS.items())
-        mid_point = len(context_fields) // 2
-        
-        for col, fields in [(ctx_left_col, context_fields[:mid_point]), (ctx_right_col, context_fields[mid_point:])]:
-            with col:
-                for field_key, field_config in fields:
-                    user_context[field_key] = st.number_input(
-                        label=translations.get_text(field_config["label_key"], lang_code),
-                        help=translations.get_text(field_config["help_key"], lang_code),
-                        value=float(field_config["default"]),
-                        min_value=0.0,
-                        step=1.0 if field_key in ["fp_daily_production", "medal_production", "special_goods_production", "guild_goods_production"] else 100.0,
-                        key=f"context_{field_key}"
-                    )
-        
-        # Current Boosts Section
-        st.subheader(translations.get_text("current_boosts_section", lang_code))
-        
-        # Create two columns for boost inputs
-        boost_left_col, boost_right_col = st.columns(2)
-        
-        user_boosts = {}
-        boost_fields = list(config.USER_BOOST_FIELDS.items())
-        boost_mid_point = len(boost_fields) // 2
-        
-        for col, fields in [(boost_left_col, boost_fields[:boost_mid_point]), (boost_right_col, boost_fields[boost_mid_point:])]:
-            with col:
-                for field_key, field_config in fields:
-                    user_boosts[field_key] = st.number_input(
-                        label=translations.get_text(field_config["label_key"], lang_code),
-                        help=translations.get_text(field_config["help_key"], lang_code),
-                        value=float(field_config["default"]),
-                        min_value=0.0,
-                        max_value=1000.0,
-                        step=1.0,
-                        format="%.1f",
-                        key=f"boost_{field_key}"
-                    )
-
-        
-        
+    # Track which tab is active using a more stable approach
+    if 'active_tab' not in st.session_state:
+        st.session_state.active_tab = 0
     
-    # --- Building Details Tab ---
-    with tabs[2]:
+    # --- Building Details Tab (First Tab) ---
+    with tabs[0]:
+        # Track tab activation without rerun
+        st.session_state.active_tab = 0
+        
         st.header(translations.get_text("building_stats", lang_code))
         
         # Filter buildings by selected era (same as Home tab)
@@ -399,11 +346,14 @@ def main():
             st.info(f"📍 {translations.translate_column('Era', lang_code)}: **{selected_translated_era}**", width=300)
 
             # Building selection dropdown (only buildings from selected era)
+            if 'selection_building' not in st.session_state:
+                st.session_state['selection_building'] = 0
+
             building_names = sorted(df_era_filtered['name'].unique())
             selected_building = st.selectbox(
                 label=translations.get_text("select_building", lang_code),
                 options=[""] + building_names,
-                index=0,
+                index=st.session_state['selection_building'],
                 key="building_selector"
             )
 
@@ -417,10 +367,24 @@ def main():
         
         if selected_building and selected_building != "":
             # Get the selected building data from the era-filtered dataframe
-            building_data = df_era_filtered[df_era_filtered['name'] == selected_building].iloc[0]
+            building_data = df_era_filtered[df_era_filtered['name'] == selected_building].iloc[0].copy()
+            
+            # Apply per square calculation if enabled
+            if show_per_square and 'Nbr of squares (Avg)' in building_data and building_data['Nbr of squares (Avg)'] > 0:
+                building_size = building_data['Nbr of squares (Avg)']
+                # Apply per square calculation to numeric columns
+                for col in building_data.index:
+                    if (col not in config.PER_SQUARE_EXCLUDED_COLUMNS and 
+                        pd.api.types.is_numeric_dtype(type(building_data[col])) and 
+                        not pd.isna(building_data[col])):
+                        building_data[col] = round(building_data[col] / building_size, 8)
             
             # Display building name as header
             st.markdown(f"### {selected_building}")
+            
+            # Show per square mode info if active
+            if show_per_square:
+                st.info("📐 " + translations.get_text("per_square_mode_active", lang_code))
             
             # Function to check if an icon exists for a column
             def has_icon(col_name: str) -> bool:
@@ -439,7 +403,7 @@ def main():
                         value = building_data[col]
 
                         # Skip zero values and empty strings, but keep all boolean values (including False)
-                        is_boolean = isinstance(value, (bool, np.bool_))
+                        is_boolean = isinstance(value, bool) or pd.api.types.is_bool_dtype(type(value))
                         if not is_boolean and (value == 0 or value == '' or pd.isna(value)):
                             continue
                         
@@ -546,9 +510,21 @@ def main():
         else:
             st.info(translations.get_text("no_building_selected", lang_code))
     
-    # --- Visualizations Tab ---
-    with tabs[3]:
-        # Apply the same filtering as the Home tab for consistency
+    # --- Building Analysis Tab (Second Tab) ---
+    with tabs[1]:
+        # Track tab activation without rerun
+        st.session_state.active_tab = 1
+        
+        # Create subtabs for Table, Weights, Consumables, QI Boosts, and QI Optimizer
+        analysis_subtabs = st.tabs([
+            translations.get_text("building_table", lang_code),
+            translations.get_text("weights", lang_code),
+            translations.get_text("consumables_analysis", lang_code),
+            translations.get_text("qi_boosts_analysis", lang_code)
+            # translations.get_text("qi_optimizer", lang_code)
+        ])
+        
+        # Apply the same filtering as the previous Home tab for consistency
         df_viz_filtered = df_filtered_by_advanced[df_filtered_by_advanced['Translated Era'] == selected_translated_era].copy()
         if selected_events:
             df_viz_filtered = df_viz_filtered[df_viz_filtered['Event'].isin(selected_events)]
@@ -571,8 +547,105 @@ def main():
             if production_columns:
                 mask = (df_viz_filtered[production_columns] != 0).any(axis=1)
                 df_viz_filtered = df_viz_filtered[mask]
-        
-        # Calculate efficiency if weights are set
+
+        # --- Weights Subtab (Process first for user_weights, user_context, user_boosts) ---
+        with analysis_subtabs[1]:
+            # --- Weighting Inputs ---
+            st.header(translations.get_text("efficiency_weights", lang_code))
+            st.markdown(translations.get_text("efficiency_help_direct", lang_code))
+            st.info(translations.get_text("reminder_city_context", lang_code))
+            st.markdown("---")
+            
+            # Create two columns for better layout
+            left_col, right_col = st.columns(2)
+            
+            # Split the column groups between the two columns
+            column_groups_list = list(config.COLUMN_GROUPS.items())
+            mid_point = len(column_groups_list) // 2
+            
+            for col, groups in [(left_col, column_groups_list[:mid_point]), (right_col, column_groups_list[mid_point:])]:
+                with col:
+                    for group_key, group_info in groups:
+                        # Find weightable columns within this group that exist in the data
+                        cols_in_group = group_info["columns"]
+                        inputs_to_create = []
+                        for col_name in cols_in_group:
+                            # Check if the column exists in the loaded data
+                            if col_name in df_original.columns and col_name in config.WEIGHTABLE_COLUMNS:
+                                # Check if the column is numeric before allowing weighting
+                                if pd.api.types.is_numeric_dtype(df_original[col_name]):
+                                    inputs_to_create.append(col_name)
+
+                        if inputs_to_create:  # Only show expander if there are inputs to create
+                            with st.expander(translations.get_text(group_info["key"], lang_code), expanded=False):
+                                for col_name in inputs_to_create:
+                                    # Skip boost metrics as they're now integrated into base metrics
+                                    if col_name in config.BOOST_TO_BASE_MAPPING:
+                                        continue
+                                        
+                                    help_text = f"Points per {translations.translate_column(col_name, lang_code).lower()}"
+                                    
+                                    user_weights[col_name] = st.number_input(
+                                        label=f"1 {translations.translate_column(col_name, lang_code)} = ___ Points",
+                                        help=help_text,
+                                        value=0.0,
+                                        min_value=0.0,
+                                        step=0.1,
+                                        format="%.1f",
+                                        key=f"weight_{col_name}"
+                                    )
+            st.markdown("---")
+            # --- User Context Section ---
+            st.header(translations.get_text("user_context", lang_code))
+            st.markdown(translations.get_text("user_context_help", lang_code))
+            
+            # Base Production Section
+            st.subheader(translations.get_text("base_production_section", lang_code))
+            
+            # Create two columns for base production inputs
+            ctx_left_col, ctx_right_col = st.columns(2)
+            
+            user_context = {}
+            context_fields = list(config.USER_CONTEXT_FIELDS.items())
+            mid_point = len(context_fields) // 2
+            
+            for col, fields in [(ctx_left_col, context_fields[:mid_point]), (ctx_right_col, context_fields[mid_point:])]:
+                with col:
+                    for field_key, field_config in fields:
+                        user_context[field_key] = st.number_input(
+                            label=translations.get_text(field_config["label_key"], lang_code),
+                            help=translations.get_text(field_config["help_key"], lang_code),
+                            value=float(field_config["default"]),
+                            min_value=0.0,
+                            step=1.0 if field_key in ["fp_daily_production", "medal_production", "special_goods_production", "guild_goods_production"] else 100.0,
+                            key=f"context_{field_key}"
+                        )
+            
+            # Current Boosts Section
+            st.subheader(translations.get_text("current_boosts_section", lang_code))
+            
+            # Create two columns for boost inputs
+            boost_left_col, boost_right_col = st.columns(2)
+            
+            user_boosts = {}
+            boost_fields = list(config.USER_BOOST_FIELDS.items())
+            boost_mid_point = len(boost_fields) // 2
+            
+            for col, fields in [(boost_left_col, boost_fields[:boost_mid_point]), (boost_right_col, boost_fields[boost_mid_point:])]:
+                with col:
+                    for field_key, field_config in fields:
+                        user_boosts[field_key] = st.number_input(
+                            label=translations.get_text(field_config["label_key"], lang_code),
+                            help=translations.get_text(field_config["help_key"], lang_code),
+                            value=float(field_config["default"]),
+                            min_value=0.0,
+                            max_value=1000.0,
+                            step=1.0,
+                            format="%.1f",
+                            key=f"boost_{field_key}"
+                        )
+
+        # Calculate efficiency if weights are set (after processing weights subtab)
         if any(w > 0 for w in user_weights.values()) and not df_viz_filtered.empty:
             df_viz_filtered = calculations.calculate_direct_weighted_efficiency(
                 df=df_viz_filtered,
@@ -580,253 +653,614 @@ def main():
                 user_context=user_context,
                 user_boosts=user_boosts
             )
+
+        # --- Table Subtab ---
+        with analysis_subtabs[0]:
+            try:
+                # Initialize efficiency columns
+                df_viz_filtered['Weighted Efficiency'] = 0.0
+                df_viz_filtered['Total Score'] = 0.0
+                
+                # --- Prepare Display Columns ---
+                # Filter columns that exist in the filtered dataframe
+                existing_columns_for_display = []
+                
+                # Process selected columns in the order they were selected
+                for col in selected_columns:
+                    if col in df_viz_filtered.columns and col not in existing_columns_for_display:
+                        existing_columns_for_display.append(col)
+                
+                # Ensure uniqueness while preserving order
+                existing_columns_for_display = list(dict.fromkeys(existing_columns_for_display))
+                logger.info(f"Columns selected for display: {existing_columns_for_display}")
+
+                # Create the final DataFrame for AgGrid
+                if not existing_columns_for_display:
+                    st.warning("No columns selected or available for display.")
+                    st.stop()
+                    
+                df_display = df_viz_filtered[existing_columns_for_display].copy()
+                df_display=df_display.sort_values(by='name',ascending=True)
+
+
+                # --- Apply "Per Square" Calculation ---
+                if show_per_square and 'Nbr of squares (Avg)' in df_viz_filtered.columns:
+                    numeric_cols = [
+                        col for col in df_display.columns
+                        if col not in config.PER_SQUARE_EXCLUDED_COLUMNS
+                        and pd.api.types.is_numeric_dtype(df_display[col])
+                    ]
+                    # Use divisor from the filtered df *before* potential division
+                    divisor_col = df_viz_filtered.loc[df_display.index, 'Nbr of squares (Avg)']
+                    divisor_col = divisor_col.replace([0, pd.NA], 1).astype(float) # Avoid division by zero/NA
+
+                    for col in numeric_cols:
+                        if col in df_display:
+                            # Ensure column is numeric before dividing
+                            if pd.api.types.is_numeric_dtype(df_display[col]):
+                                df_display[col] = (df_display[col] / divisor_col).round(8)
+                            else:
+                                logger.warning(f"Column '{col}' intended for per-square calc is not numeric.")
+
+                # --- Configure and Display AgGrid ---
+                eff_min = df_display['Weighted Efficiency'].min() if 'Weighted Efficiency' in df_display and not df_display.empty else 0
+                eff_max = df_display['Weighted Efficiency'].max() if 'Weighted Efficiency' in df_display and not df_display.empty else 0
+                if pd.isna(eff_min): eff_min = 0
+                if pd.isna(eff_max): eff_max = 0
+
+                # --- Prepare Export DataFrame with Translated Column Names ---
+                df_export = df_display.copy()
+                # Create mapping of original to translated column names
+                column_translation_map = {
+                    col: translations.translate_column(col, lang_code) 
+                    for col in df_export.columns
+                }
+                # Rename columns to translated names
+                df_export.rename(columns=column_translation_map, inplace=True)
+                logger.info(f"Column translations for export: {column_translation_map}")
+
+                # --- Export Buttons ---
+                col1, col2 = st.columns([1, 10])
+                with col1:
+                    # CSV Export with proper UTF-8 encoding and BOM
+                    buffer_csv = BytesIO()
+                    # Add UTF-8 BOM manually
+                    buffer_csv.write('\ufeff'.encode('utf-8'))
+                    # Write CSV data with translated column names
+                    csv_string = df_export.to_csv(index=False, sep=";")
+                    buffer_csv.write(csv_string.encode('utf-8'))
+                    buffer_csv.seek(0)
+                    csv_data = buffer_csv.getvalue()
+                    
+                    st.download_button(
+                        label=translations.get_text("export_csv", lang_code),
+                        data=csv_data,
+                        file_name=f"foe_buildings_{selected_translated_era}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv",
+                        mime="text/csv; charset=utf-8",
+                        key="export_csv"
+                    )
+                with col2:
+                    # JSON Export with translated column names and proper UTF-8 encoding
+                    json_string = df_export.to_json(orient="records", date_format="iso", force_ascii=False)
+                    json_data = json_string.encode('utf-8')
+                    
+                    st.download_button(
+                        label=translations.get_text("export_json", lang_code),
+                        data=json_data,
+                        file_name=f"foe_buildings_{selected_translated_era}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json",
+                        mime="application/json; charset=utf-8",
+                        key="export_json"
+                    )
+
+                grid_options = ui_components.build_grid_options(
+                    df_display=df_display,
+                    lang_code=lang_code,
+                    use_icons=use_icons,
+                    show_labels=show_labels,
+                    enable_heatmap=enable_heatmap,
+                    eff_min=eff_min,
+                    eff_max=eff_max
+                )
+                
+                # --- Display Filter Information ---
+                buildings_filtered_by_zero_production = 0
+                if hide_zero_production and buildings_filtered_by_zero_production > 0:
+                    st.info(
+                        translations.get_text("zero_production_filter_info", lang_code).format(
+                            count=buildings_filtered_by_zero_production
+                        )
+                    )
+
+                # --- Create a dynamic key to force re-render and auto-sizing when switching language ---
+                grid_key = f"building_grid_{lang_code}"
+                logger.debug(f"Using AgGrid key: {grid_key}")
+
+                grid_return = AgGrid(
+                    df_display,
+                    gridOptions=grid_options,
+                    custom_css=ui_components.CUSTOM_CSS,
+                    allow_unsafe_jscode=True,
+                    theme=AgGridTheme.STREAMLIT,
+                    height=800,
+                    width='100%',
+                    reload_data=False,
+                    key=grid_key,
+                    update_mode=GridUpdateMode.SELECTION_CHANGED,
+                    data_return_mode=DataReturnMode.AS_INPUT,
+                    columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS
+                )
+
+                builingRows=grid_return.selected_rows                               # Get selected row
+                if builingRows is not None:                                         # if a row is selected
+                    buildingIndex=int(builingRows.index[0])+1                       # Get selected row's Index
+                    if buildingIndex!=st.session_state['selection_building']:       # if changed
+                        st.session_state['selection_building']  =  buildingIndex    # set to new value
+                        st.rerun()
+
+                # --- Display Disclaimer ---
+                st.markdown("***")
+                st.markdown(translations.get_text("efficiency_disclaimer", lang_code))
+                
+                # --- Credits Section ---
+                st.markdown("***")
+                st.markdown(translations.get_text("credits_title", lang_code))
+                
+                # Create columns for credits layout
+                credits_col1, credits_col2 = st.columns(2)
+                
+                with credits_col1:
+                    st.markdown(f"**{translations.get_text('data_sources', lang_code)}**")
+                    st.markdown(f"- {translations.get_text('foe_buildings_db', lang_code)}")
+                    st.markdown(f"- {translations.get_text('innogames_foe', lang_code)}")
+                    
+                    st.markdown(f"**{translations.get_text('development_tools', lang_code)}**")
+                    st.markdown(f"- [Streamlit](https://streamlit.io/) - {translations.get_text('web_framework', lang_code)}")
+                    st.markdown(f"- [AG-Grid](https://www.ag-grid.com/) - {translations.get_text('data_grid', lang_code)}")
+                    st.markdown(f"- [Pandas](https://pandas.pydata.org/) - {translations.get_text('data_analysis', lang_code)}")
+                
+                with credits_col2:
+                    st.markdown(f"**{translations.get_text('community', lang_code)}**")
+                    st.markdown(f"- {translations.get_text('foe_community', lang_code)}")
+                    st.markdown(f"- {translations.get_text('beta_testers', lang_code)}")
+                    
+                    st.markdown(f"**{translations.get_text('special_thanks', lang_code)}**")
+                    st.markdown(f"- {translations.get_text('github_contributors', lang_code)}")
+                
+                # Footer
+                st.markdown("---")
+                st.markdown(
+                    f"<div style='text-align: center; color: #666; font-size: 0.9em;'>"
+                    f"{translations.get_text('made_with_love', lang_code)} | "
+                    f"{translations.get_text('not_affiliated', lang_code)}"
+                    f"</div>", 
+                    unsafe_allow_html=True
+                )
+
+            except Exception as e:
+                st.error(f"An error occurred during app execution: {str(e)}")
+                logger.error(f"Error during main app execution: {e}", exc_info=True)
         
+        # --- Consumables Analysis Subtab ---
+        with analysis_subtabs[2]:
+            st.header("🛠️ " + translations.get_text("consumables_analysis", lang_code))
+            st.markdown(translations.get_text("consumables_analysis_help", lang_code))
+            
+            # Get consumable columns from config
+            consumable_columns = config.COLUMN_GROUPS["consumables"]["columns"]
+            
+            # Filter to only include consumables that exist in the data
+            available_consumables = [col for col in consumable_columns if col in df_viz_filtered.columns]
+            
+            if not available_consumables:
+                st.warning(translations.get_text("no_consumables_available", lang_code))
+            else:
+                # Consumable selection
+                col1, col2 = st.columns([3, 1])
+                
+                with col1:
+                    selected_consumables = st.multiselect(
+                        translations.get_text("consumables_to_analyze", lang_code),
+                        options=available_consumables,
+                        format_func=lambda x: translations.translate_column(x, lang_code),
+                        default=[],
+                        placeholder=translations.get_text("choose_an_option", lang_code),
+                        key="consumables_selector"
+                    )
+                
+                with col2:
+                    # Display format toggle
+                    show_frequency_format = st.toggle(
+                        translations.get_text("show_frequency_format", lang_code),
+                        value=True,
+                        key="consumables_frequency_toggle",
+                        help=translations.get_text("frequency_format_help", lang_code)
+                    )
+                
+                if selected_consumables:
+                    # Create a copy of the data without per-square calculation
+                    df_consumables = df_viz_filtered.copy()
+                    
+                    # Filter buildings that produce at least one of the selected consumables
+                    consumables_mask = (df_consumables[selected_consumables] > 0).any(axis=1)
+                    df_consumables_filtered = df_consumables[consumables_mask].copy()
+                    
+                    if df_consumables_filtered.empty:
+                        st.info(translations.get_text("no_buildings_produce_consumables", lang_code))
+                    else:
+                        # Prepare the display data
+                        display_data = []
+                        
+                        for _, building in df_consumables_filtered.iterrows():
+                            building_id = building.get('asset_id')
+                            building_name = building.get('name', 'Unknown')
+                            building_size = building.get('size', 'Unknown')
+                            needs_road = building.get('Road', False)
+                            road_text = translations.get_text("yes", lang_code) if needs_road else translations.get_text("no", lang_code)
+                            
+                            # Get building image URL
+                            image_url = None
+                            if building_id and cached_image_manager.has_image(building_id):
+                                image_url = cached_image_manager.get_building_image_url(building_id)
+                            
+                            # Create base row data
+                            row_data = {
+                                "Building Image": image_url,
+                                "Building Name": building_name,
+                                "Size": building_size,
+                                "Road": road_text
+                            }
+                            
+                            # Add consumable production data
+                            for consumable in selected_consumables:
+                                production_value = building.get(consumable, 0)
+                                if production_value > 0:
+                                    if show_frequency_format:
+                                        # Convert to "1 every X days" format
+                                        days_per_unit = 1 / production_value if production_value > 0 else float('inf')
+                                        if days_per_unit == float('inf'):
+                                            formatted_value = "Never"
+                                        elif days_per_unit >= 1:
+                                            formatted_value = f"1 every {days_per_unit:.2f} days" if lang_code == "en" else f"1 tous les {days_per_unit:.2f} jours"
+                                        else:
+                                            # Less than 1 day, show as hours
+                                            hours_per_unit = days_per_unit * 24
+                                            if hours_per_unit >= 1:
+                                                formatted_value = f"1 every {hours_per_unit:.1f} hours" if lang_code == "en" else f"1 toutes les {hours_per_unit:.1f} heures"
+                                            else:
+                                                minutes_per_unit = hours_per_unit * 60
+                                                formatted_value = f"1 every {minutes_per_unit:.0f} minutes" if lang_code == "en" else f"1 toutes les {minutes_per_unit:.0f} minutes"
+                                    else:
+                                        # Show per day format
+                                        formatted_value = f"{production_value:.2f}/day" if lang_code == "en" else f"{production_value:.2f}/jour"
+                                    
+                                    translated_consumable = translations.translate_column(consumable, lang_code)
+                                    row_data[translated_consumable] = formatted_value
+                                else:
+                                    # Don't include buildings that don't produce this consumable
+                                    continue
+                            
+                            # Only add row if it produces at least one selected consumable
+                            has_production = any(building.get(cons, 0) > 0 for cons in selected_consumables)
+                            if has_production:
+                                display_data.append(row_data)
+                        
+                        if display_data:
+                            # Create DataFrame for display
+                            consumables_df = pd.DataFrame(display_data)
+                            
+                            # Configure column display
+                            column_config = {
+                                "Building Image": st.column_config.ImageColumn(
+                                    label="🏢",
+                                    width="small"
+                                ),
+                                "Building Name": st.column_config.TextColumn(
+                                    label=translations.get_text("building_name", lang_code),
+                                    width="medium"
+                                ),
+                                "Size": st.column_config.TextColumn(
+                                    label=translations.get_text("size", lang_code),
+                                    width="small"
+                                ),
+                                "Road": st.column_config.TextColumn(
+                                    label=translations.get_text("road", lang_code),
+                                    width="small"
+                                )
+                            }
+                            
+                            # Add consumable columns to config
+                            for consumable in selected_consumables:
+                                translated_name = translations.translate_column(consumable, lang_code)
+                                if translated_name in consumables_df.columns:
+                                    column_config[translated_name] = st.column_config.TextColumn(
+                                        label=translated_name,
+                                        width="medium"
+                                    )
+                            
+                            # Display summary
+                            st.subheader(f"📋 {translations.get_text('results_summary', lang_code)}")
+                            st.write(f"**{len(consumables_df)} {translations.get_text('buildings_found', lang_code)}**")
+                            
+                            # Display the table
+                            st.dataframe(
+                                consumables_df,
+                                column_config=column_config,
+                                hide_index=True,
+                                use_container_width=False,
+                                height=min(600, max(200, len(consumables_df) * 40 + 100))
+                            )
+                            
+                            # Export functionality
+                            if len(consumables_df) > 0:
+                                st.markdown("---")
+                                col1, col2 = st.columns(2)
+                                
+                                with col1:
+                                    # CSV Export
+                                    csv_string = consumables_df.to_csv(index=False, sep=";")
+                                    st.download_button(
+                                        label=translations.get_text("export_csv", lang_code),
+                                        data=csv_string.encode('utf-8'),
+                                        file_name=f"consumables_analysis_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv",
+                                        mime="text/csv",
+                                        key="export_consumables_csv"
+                                    )
+                                
+                                with col2:
+                                    # JSON Export
+                                    json_string = consumables_df.to_json(orient="records", force_ascii=False)
+                                    st.download_button(
+                                        label=translations.get_text("export_json", lang_code),
+                                        data=json_string.encode('utf-8'),
+                                        file_name=f"consumables_analysis_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json",
+                                        mime="application/json",
+                                        key="export_consumables_json"
+                                    )
+                        else:
+                            st.info(translations.get_text("no_buildings_produce_selected_consumables", lang_code))
+                else:
+                    st.info(translations.get_text("select_consumables_to_analyze", lang_code))
+        
+        # --- QI Boosts Analysis Subtab ---
+        with analysis_subtabs[3]:
+            st.header("🌌 " + translations.get_text("qi_boosts_analysis", lang_code))
+            st.markdown(translations.get_text("qi_boosts_analysis_help", lang_code))
+            
+            # Get QI boost columns from config
+            qi_boost_columns = config.COLUMN_GROUPS["qi"]["columns"]
+            
+            # Filter to only include QI boosts that exist in the data
+            available_qi_boosts = [col for col in qi_boost_columns if col in df_viz_filtered.columns]
+            
+            if not available_qi_boosts:
+                st.warning(translations.get_text("no_qi_boosts_available", lang_code))
+            else:
+                # QI boost selection
+                col1, col2 = st.columns([3, 1])
+                
+                with col1:
+                    selected_qi_boosts = st.multiselect(
+                        translations.get_text("qi_boosts_to_analyze", lang_code),
+                        options=available_qi_boosts,
+                        format_func=lambda x: translations.translate_column(x, lang_code),
+                        default=[],
+                        placeholder=translations.get_text("choose_an_option", lang_code),
+                        key="qi_boosts_selector"
+                    )
+                
+                with col2:
+                    # Display format toggle for percentage vs actual values
+                    show_actual_values = st.toggle(
+                        translations.get_text("show_actual_values_format", lang_code),
+                        value=True,
+                        key="qi_actual_values_toggle",
+                        help=translations.get_text("actual_values_format_help", lang_code)
+                    )
+                
+                if selected_qi_boosts:
+                    # Create a copy of the data without per-square calculation
+                    df_qi_boosts = df_viz_filtered.copy()
+                    
+                    # Filter buildings that provide at least one of the selected QI boosts
+                    qi_boosts_mask = (df_qi_boosts[selected_qi_boosts] > 0).any(axis=1)
+                    df_qi_boosts_filtered = df_qi_boosts[qi_boosts_mask].copy()
+                    
+                    if df_qi_boosts_filtered.empty:
+                        st.info(translations.get_text("no_buildings_provide_qi_boosts", lang_code))
+                    else:
+                        # Prepare the display data
+                        display_data = []
+                        
+                        for _, building in df_qi_boosts_filtered.iterrows():
+                            building_id = building.get('asset_id')
+                            building_name = building.get('name', 'Unknown')
+                            building_size = building.get('size', 'Unknown')
+                            needs_road = building.get('Road', False)
+                            road_text = translations.get_text("yes", lang_code) if needs_road else translations.get_text("no", lang_code)
+                            
+                            # Get building image URL
+                            image_url = None
+                            if building_id and cached_image_manager.has_image(building_id):
+                                image_url = cached_image_manager.get_building_image_url(building_id)
+                            
+                            # Create base row data
+                            row_data = {
+                                "Building Image": image_url,
+                                "Building Name": building_name,
+                                "Size": building_size,
+                                "Road": road_text
+                            }
+                            
+                            # Add QI boost data
+                            for qi_boost in selected_qi_boosts:
+                                boost_value = building.get(qi_boost, 0)
+                                if boost_value > 0:
+                                    if show_actual_values:
+                                        # Show actual values as they are
+                                        if qi_boost in config.PERCENTAGE_COLUMNS:
+                                            formatted_value = f"{boost_value:.0f}%"
+                                        else:
+                                            formatted_value = f"{boost_value:.0f}"
+                                    else:
+                                        # Show simplified format for percentages
+                                        if qi_boost in config.PERCENTAGE_COLUMNS:
+                                            formatted_value = f"+{boost_value:.0f}%"
+                                        else:
+                                            formatted_value = f"{boost_value:.0f}"
+                                    
+                                    translated_qi_boost = translations.translate_column(qi_boost, lang_code)
+                                    row_data[translated_qi_boost] = formatted_value
+                                else:
+                                    # Don't include buildings that don't provide this QI boost
+                                    continue
+                            
+                            # Only add row if it provides at least one selected QI boost
+                            has_qi_boost = any(building.get(boost, 0) > 0 for boost in selected_qi_boosts)
+                            if has_qi_boost:
+                                display_data.append(row_data)
+                        
+                        if display_data:
+                            # Create DataFrame for display
+                            qi_boosts_df = pd.DataFrame(display_data)
+                            
+                            # Configure column display
+                            column_config = {
+                                "Building Image": st.column_config.ImageColumn(
+                                    label="🏢",
+                                    width="small"
+                                ),
+                                "Building Name": st.column_config.TextColumn(
+                                    label=translations.get_text("building_name", lang_code),
+                                    width="medium"
+                                ),
+                                "Size": st.column_config.TextColumn(
+                                    label=translations.get_text("size", lang_code),
+                                    width="small"
+                                ),
+                                "Road": st.column_config.TextColumn(
+                                    label=translations.get_text("road", lang_code),
+                                    width="small"
+                                )
+                            }
+                            
+                            # Add QI boost columns to config
+                            for qi_boost in selected_qi_boosts:
+                                translated_name = translations.translate_column(qi_boost, lang_code)
+                                if translated_name in qi_boosts_df.columns:
+                                    column_config[translated_name] = st.column_config.TextColumn(
+                                        label=translated_name,
+                                        width="medium"
+                                    )
+                            
+                            # Display summary
+                            st.subheader(f"📋 {translations.get_text('results_summary', lang_code)}")
+                            st.write(f"**{len(qi_boosts_df)} {translations.get_text('buildings_found', lang_code)}**")
+                            
+                            # Display the table
+                            st.dataframe(
+                                qi_boosts_df,
+                                column_config=column_config,
+                                hide_index=True,
+                                use_container_width=False,
+                                height=min(600, max(200, len(qi_boosts_df) * 40 + 100))
+                            )
+                            
+                            # Export functionality
+                            if len(qi_boosts_df) > 0:
+                                st.markdown("---")
+                                st.subheader("📤 " + translations.get_text("export_results", lang_code))
+                                
+                                # Prepare export data
+                                export_data = []
+                                for _, combo in qi_boosts_df.iterrows():
+                                    row = {
+                                        translations.get_text("building_name", lang_code): combo.get("Building Name", ""),
+                                        translations.get_text("size", lang_code): combo.get("Size", ""),
+                                        translations.get_text("road", lang_code): combo.get("Road", "")
+                                    }
+                                    
+                                    # Add QI boost columns
+                                    for qi_boost in selected_qi_boosts:
+                                        translated_qi_boost = translations.translate_column(qi_boost, lang_code)
+                                        if translated_qi_boost in combo:
+                                            row[translated_qi_boost] = combo[translated_qi_boost]
+                                    
+                                    export_data.append(row)
+                                
+                                export_df = pd.DataFrame(export_data)
+                                
+                                col1, col2 = st.columns(2)
+                                with col1:
+                                    csv_string = export_df.to_csv(index=False, sep=";")
+                                    st.download_button(
+                                        label=translations.get_text("export_csv", lang_code),
+                                        data=csv_string.encode('utf-8'),
+                                        file_name=f"qi_boosts_analysis_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv",
+                                        mime="text/csv",
+                                        key="export_qi_boosts_csv"
+                                    )
+                                
+                                with col2:
+                                    json_string = export_df.to_json(orient="records", force_ascii=False)
+                                    st.download_button(
+                                        label=translations.get_text("export_json", lang_code),
+                                        data=json_string.encode('utf-8'),
+                                        file_name=f"qi_boosts_analysis_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json",
+                                        mime="application/json",
+                                        key="export_qi_boosts_json"
+                                    )
+                        else:
+                            st.info(translations.get_text("no_buildings_provide_selected_qi_boosts", lang_code))
+                else:
+                    st.info(translations.get_text("select_qi_boosts_to_analyze", lang_code))
+        
+        # --- QI Optimizer Subtab ---
+        # with analysis_subtabs[4]:
+            # qi_optimizer_test.render_qi_optimizer(df_viz_filtered, lang_code, cached_image_manager)
+    
+    # --- City Analysis Tab ---
+    with tabs[2]:
+        # Track tab activation without rerun
+        st.session_state.active_tab = 2
+        
+        # Render the City Analysis interface
+        city_analysis.render_city_analysis_tab(
+            df_original=df_original,
+            user_weights=user_weights,
+            user_context=user_context,
+            user_boosts=user_boosts,
+            selected_columns=selected_columns,
+            lang_code=lang_code
+        )
+    
+    # --- Visualizations Tab ---
+    with tabs[3]:
+        # Track tab activation without rerun
+        st.session_state.active_tab = 3
+        
+        # Use the same filtered data from the analysis tab
         # Apply "Per Square" Calculation to visualization data if enabled
-        if show_per_square and 'Nbr of squares (Avg)' in df_viz_filtered.columns and not df_viz_filtered.empty:
+        df_viz_display = df_viz_filtered.copy()
+        if show_per_square and 'Nbr of squares (Avg)' in df_viz_display.columns and not df_viz_display.empty:
             numeric_cols = [
-                col for col in df_viz_filtered.columns
+                col for col in df_viz_display.columns
                 if col not in config.PER_SQUARE_EXCLUDED_COLUMNS
-                and pd.api.types.is_numeric_dtype(df_viz_filtered[col])
+                and pd.api.types.is_numeric_dtype(df_viz_display[col])
             ]
             # Use divisor from the filtered df
-            divisor_col = df_viz_filtered['Nbr of squares (Avg)']
+            divisor_col = df_viz_display['Nbr of squares (Avg)']
             divisor_col = divisor_col.replace([0, pd.NA], 1).astype(float) # Avoid division by zero/NA
 
             for col in numeric_cols:
-                if col in df_viz_filtered:
+                if col in df_viz_display:
                     # Ensure column is numeric before dividing
-                    if pd.api.types.is_numeric_dtype(df_viz_filtered[col]):
-                        df_viz_filtered[col] = (df_viz_filtered[col] / divisor_col).round(8)
+                    if pd.api.types.is_numeric_dtype(df_viz_display[col]):
+                        df_viz_display[col] = (df_viz_display[col] / divisor_col).round(8)
         
         # Render the visualizations
-        data_visualizations.render_data_visualizations(df_viz_filtered, lang_code, show_per_square, combine_army_stats)
+        data_visualizations.render_data_visualizations(df_viz_display, lang_code, show_per_square, combine_army_stats)
     
-    # --- Home Tab ---
-    with tabs[0]:
-        try:
-            # --- Filter Dataframe ---
-            # Start with advanced filtered data
-            df_filtered = df_filtered_by_advanced[df_filtered_by_advanced['Translated Era'] == selected_translated_era].copy()
-            if selected_events:
-                df_filtered = df_filtered[df_filtered['Event'].isin(selected_events)]
-            if name_filter:
-                df_filtered = df_filtered[df_filtered['name'].isin(name_filter)]
 
-            # Apply army stats combination if enabled
-            if combine_army_stats:
-                df_filtered = combine_army_with_ge_gbg(df_filtered)
-
-            # Debug logging for Event column
-            logger.info(f"Columns in df_filtered: {df_filtered.columns.tolist()}")
-            if 'Event' in df_filtered.columns:
-                logger.info(f"Event column exists with values: {df_filtered['Event'].unique().tolist()}")
-            else:
-                logger.warning("Event column is missing from df_filtered")
-
-            # --- Apply Zero-Production Filter ---
-            buildings_filtered_by_zero_production = 0
-            if hide_zero_production:
-                # Get production columns (exclude basic_info group)
-                basic_info_columns = config.COLUMN_GROUPS["basic_info"]["columns"]
-                production_columns = [
-                    col for col in selected_columns 
-                    if col not in basic_info_columns and col in df_filtered.columns
-                    and pd.api.types.is_numeric_dtype(df_filtered[col])
-                ]
-                
-                if production_columns:
-                    # Keep rows where at least one production column has non-zero value
-                    mask = (df_filtered[production_columns] != 0).any(axis=1)
-                    rows_before = len(df_filtered)
-                    df_filtered = df_filtered[mask]
-                    buildings_filtered_by_zero_production = rows_before - len(df_filtered)
-                    logger.info(f"Zero-production filter: {buildings_filtered_by_zero_production} buildings hidden from {production_columns}")
-
-            # --- Calculate Weighted Efficiency ---
-            df_filtered['Weighted Efficiency'] = 0.0 # Initialize
-            df_filtered['Total Score'] = 0.0 # Initialize
-            any_weight_set = any(w > 0 for w in user_weights.values())
-            if any_weight_set and not df_filtered.empty:
-                df_filtered = calculations.calculate_direct_weighted_efficiency(
-                    df=df_filtered,
-                    user_weights=user_weights,
-                    user_context=user_context,
-                    user_boosts=user_boosts
-                )
-            elif not df_filtered.empty:
-                logger.debug("Skipping efficiency calculation as no weights > 0 are set.")
-            # If df_filtered is empty, WE column remains 0.0
-
-            # --- Prepare Display Columns ---
-            # selected_columns already contains the user's individual column selections
-            
-            # Filter columns that exist in the filtered dataframe
-            existing_columns_for_display = []
-            
-            # Process selected columns in the order they were selected
-            for col in selected_columns:
-                if col in df_filtered.columns and col not in existing_columns_for_display:
-                    existing_columns_for_display.append(col)
-            
-            # Ensure uniqueness while preserving order
-            existing_columns_for_display = list(dict.fromkeys(existing_columns_for_display))
-            logger.info(f"Columns selected for display: {existing_columns_for_display}")
-
-            # Create the final DataFrame for AgGrid
-            if not existing_columns_for_display:
-                st.warning("No columns selected or available for display.")
-                st.stop()
-                
-            df_display = df_filtered[existing_columns_for_display].copy()
-
-            # --- Apply "Per Square" Calculation ---
-            if show_per_square and 'Nbr of squares (Avg)' in df_filtered.columns:
-                numeric_cols = [
-                    col for col in df_display.columns
-                    if col not in config.PER_SQUARE_EXCLUDED_COLUMNS
-                    and pd.api.types.is_numeric_dtype(df_display[col])
-                ]
-                # Use divisor from the filtered df *before* potential division
-                divisor_col = df_filtered.loc[df_display.index, 'Nbr of squares (Avg)']
-                divisor_col = divisor_col.replace([0, pd.NA], 1).astype(float) # Avoid division by zero/NA
-
-                for col in numeric_cols:
-                    if col in df_display:
-                        # Ensure column is numeric before dividing
-                        if pd.api.types.is_numeric_dtype(df_display[col]):
-                            df_display[col] = (df_display[col] / divisor_col).round(8)
-                        else:
-                            logger.warning(f"Column '{col}' intended for per-square calc is not numeric.")
-
-            # --- Configure and Display AgGrid ---
-            eff_min = df_display['Weighted Efficiency'].min() if 'Weighted Efficiency' in df_display and not df_display.empty else 0
-            eff_max = df_display['Weighted Efficiency'].max() if 'Weighted Efficiency' in df_display and not df_display.empty else 0
-            if pd.isna(eff_min): eff_min = 0
-            if pd.isna(eff_max): eff_max = 0
-
-            # --- Prepare Export DataFrame with Translated Column Names ---
-            df_export = df_display.copy()
-            # Create mapping of original to translated column names
-            column_translation_map = {
-                col: translations.translate_column(col, lang_code) 
-                for col in df_export.columns
-            }
-            # Rename columns to translated names
-            df_export.rename(columns=column_translation_map, inplace=True)
-            logger.info(f"Column translations for export: {column_translation_map}")
-
-            # --- Export Buttons ---
-            col1, col2 = st.columns([1, 10])
-            with col1:
-                # CSV Export with proper UTF-8 encoding and BOM
-                buffer_csv = BytesIO()
-                # Add UTF-8 BOM manually
-                buffer_csv.write('\ufeff'.encode('utf-8'))
-                # Write CSV data with translated column names
-                csv_string = df_export.to_csv(index=False, sep=";")
-                buffer_csv.write(csv_string.encode('utf-8'))
-                buffer_csv.seek(0)
-                csv_data = buffer_csv.getvalue()
-                
-                st.download_button(
-                    label=translations.get_text("export_csv", lang_code),
-                    data=csv_data,
-                    file_name=f"foe_buildings_{selected_translated_era}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.csv",
-                    mime="text/csv; charset=utf-8",
-                    key="export_csv"
-                )
-            with col2:
-                # JSON Export with translated column names and proper UTF-8 encoding
-                json_string = df_export.to_json(orient="records", date_format="iso", force_ascii=False)
-                json_data = json_string.encode('utf-8')
-                
-                st.download_button(
-                    label=translations.get_text("export_json", lang_code),
-                    data=json_data,
-                    file_name=f"foe_buildings_{selected_translated_era}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json",
-                    mime="application/json; charset=utf-8",
-                    key="export_json"
-                )
-
-            grid_options = ui_components.build_grid_options(
-                df_display=df_display,
-                lang_code=lang_code,
-                use_icons=use_icons,
-                show_labels=show_labels,
-                enable_heatmap=enable_heatmap,
-                eff_min=eff_min,
-                eff_max=eff_max
-            )
-            
-            # --- Display Filter Information ---
-            if hide_zero_production and buildings_filtered_by_zero_production > 0:
-                st.info(
-                    translations.get_text("zero_production_filter_info", lang_code).format(
-                        count=buildings_filtered_by_zero_production
-                    )
-                )
-
-            # --- Create a dynamic key to force re-render and auto-sizing when switching language ---
-            grid_key = f"building_grid_{lang_code}"
-            logger.debug(f"Using AgGrid key: {grid_key}")
-
-            grid_return = AgGrid(
-                df_display,
-                gridOptions=grid_options,
-                custom_css=ui_components.CUSTOM_CSS,
-                allow_unsafe_jscode=True,
-                theme=AgGridTheme.STREAMLIT,
-                height=800,
-                width='100%',
-                reload_data=False,
-                key=grid_key,
-                update_mode=GridUpdateMode.MODEL_CHANGED,
-                data_return_mode=DataReturnMode.AS_INPUT,
-                columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS
-            )
-
-            # --- Display Disclaimer ---
-            st.markdown("***")
-            st.markdown(translations.get_text("efficiency_disclaimer", lang_code))
-            
-            # --- Credits Section ---
-            st.markdown("***")
-            st.markdown(translations.get_text("credits_title", lang_code))
-            
-            # Create columns for credits layout
-            credits_col1, credits_col2 = st.columns(2)
-            
-            with credits_col1:
-                st.markdown(f"**{translations.get_text('data_sources', lang_code)}**")
-                st.markdown(f"- {translations.get_text('foe_buildings_db', lang_code)}")
-                st.markdown(f"- {translations.get_text('innogames_foe', lang_code)}")
-                
-                st.markdown(f"**{translations.get_text('development_tools', lang_code)}**")
-                st.markdown(f"- [Streamlit](https://streamlit.io/) - {translations.get_text('web_framework', lang_code)}")
-                st.markdown(f"- [AG-Grid](https://www.ag-grid.com/) - {translations.get_text('data_grid', lang_code)}")
-                st.markdown(f"- [Pandas](https://pandas.pydata.org/) - {translations.get_text('data_analysis', lang_code)}")
-            
-            with credits_col2:
-                st.markdown(f"**{translations.get_text('community', lang_code)}**")
-                st.markdown(f"- {translations.get_text('foe_community', lang_code)}")
-                st.markdown(f"- {translations.get_text('beta_testers', lang_code)}")
-                
-                st.markdown(f"**{translations.get_text('special_thanks', lang_code)}**")
-                st.markdown(f"- {translations.get_text('github_contributors', lang_code)}")
-            
-            # Footer
-            st.markdown("---")
-            st.markdown(
-                f"<div style='text-align: center; color: #666; font-size: 0.9em;'>"
-                f"{translations.get_text('made_with_love', lang_code)} | "
-                f"{translations.get_text('not_affiliated', lang_code)}"
-                f"</div>", 
-                unsafe_allow_html=True
-            )
-
-        except Exception as e:
-            st.error(f"An error occurred during app execution: {str(e)}")
-            logger.error(f"Error during main app execution: {e}", exc_info=True)
 
 # --- Main Execution Guard ---
 if __name__ == "__main__":

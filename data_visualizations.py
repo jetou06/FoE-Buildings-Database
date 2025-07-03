@@ -311,7 +311,8 @@ class DataVisualizationManager:
         selected_buildings = st.multiselect(
             translations.get_text("select_buildings_for_simulation", self.lang_code),
             options=available_buildings,
-            default=available_buildings[:5] if len(available_buildings) >= 5 else available_buildings
+            default=available_buildings[:5] if len(available_buildings) >= 5 else available_buildings,
+            placeholder=translations.get_text("choose_an_option", self.lang_code)
         )
         
         if not selected_buildings:
@@ -537,101 +538,12 @@ def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square
 
     # Create tabs for different visualization types
     viz_tabs = st.tabs([
-        translations.get_text("efficiency_analysis", lang_code),
-        translations.get_text("distribution_analysis", lang_code),
         translations.get_text("top_buildings", lang_code),
         translations.get_text("building_comparison", lang_code)
     ])
     
-    # Efficiency Analysis Tab
-    with viz_tabs[0]:
-        st.subheader("🎯 " + translations.get_text("efficiency_scatter_plots", lang_code))
-
-        if show_per_square:
-            st.info("📐 " + translations.get_text("per_square_mode_active", lang_code))
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            x_axis = st.selectbox(
-                translations.get_text("select_x_axis", lang_code),
-                options=viz_manager.numeric_columns,
-                format_func=lambda x: viz_manager._translate_column(x),
-                key="scatter_x_axis"
-            )
-        
-        with col2:
-            y_axis = st.selectbox(
-                translations.get_text("select_y_axis", lang_code),
-                options=viz_manager.numeric_columns,
-                format_func=lambda x: viz_manager._translate_column(x),
-                key="scatter_y_axis",
-                index=1 if len(viz_manager.numeric_columns) > 1 else 0
-            )
-        
-        col3, col4 = st.columns(2)
-        with col3:
-            color_by = st.selectbox(
-                translations.get_text("color_by_optional", lang_code),
-                options=[""] + viz_manager.categorical_columns,
-                format_func=lambda x: viz_manager._translate_column(x) if x else translations.get_text("none", lang_code),
-                key="scatter_color"
-            )
-        
-        with col4:
-            size_by = st.selectbox(
-                translations.get_text("size_by_optional", lang_code),
-                options=[""] + viz_manager.numeric_columns,
-                format_func=lambda x: viz_manager._translate_column(x) if x else translations.get_text("none", lang_code),
-                key="scatter_size"
-            )
-        
-        if x_axis and y_axis:
-            fig = viz_manager.create_efficiency_scatter_plot(
-                x_axis, y_axis, 
-                color_by if color_by else None,
-                size_by if size_by else None
-            )
-            st.plotly_chart(fig, use_container_width=True)
-    
-    # Distribution Analysis Tab
-    with viz_tabs[1]:
-        st.subheader("📈 " + translations.get_text("distribution_charts", lang_code))
-        
-        if show_per_square:
-            st.info("📐 " + translations.get_text("per_square_mode_active", lang_code))
-
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            dist_column = st.selectbox(
-                translations.get_text("select_metric", lang_code),
-                options=viz_manager.numeric_columns,
-                format_func=lambda x: viz_manager._translate_column(x),
-                index= 6 if len(viz_manager.numeric_columns) > 1 else 0,
-                key="dist_column"
-            )
-        
-        with col2:
-            chart_type = st.selectbox(
-                translations.get_text("chart_type", lang_code),
-                options=["histogram", "box", "violin"],
-                format_func=lambda x: translations.get_text(f"chart_type_{x}", lang_code),
-                key="dist_chart_type"
-            )
-        
-        with col3:
-            ignore_zeros = st.checkbox(
-                translations.get_text("ignore_zero_values", lang_code),
-                value=False,
-                key="dist_ignore_zeros",
-                help=translations.get_text("ignore_zero_values_help", lang_code)
-            )
-        
-        if dist_column:
-            fig = viz_manager.create_distribution_chart(dist_column, chart_type, ignore_zeros)
-            st.plotly_chart(fig, use_container_width=True)
-    
     # Top Buildings Tab
-    with viz_tabs[2]:
+    with viz_tabs[0]:
         st.subheader("🏆 " + translations.get_text("top_buildings_charts", lang_code))
         
         if show_per_square:
@@ -667,7 +579,7 @@ def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square
             st.plotly_chart(fig, use_container_width=True)
     
     # Building Comparison Tab
-    with viz_tabs[3]:
+    with viz_tabs[1]:
         st.subheader("⚖️ " + translations.get_text("building_comparison_analysis", lang_code))
         
         # Building selection (limited to 5)
@@ -676,6 +588,7 @@ def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square
             translations.get_text("select_buildings_to_compare", lang_code),
             options=available_buildings,
             max_selections=5,
+            placeholder=translations.get_text("choose_an_option", lang_code),
             key="comparison_buildings"
         )
         
@@ -707,6 +620,7 @@ def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square
             options=viz_manager.numeric_columns,
             format_func=lambda x: viz_manager._translate_column(x),
             default=auto_metrics if len(selected_buildings) >= 2 else [],
+            placeholder=translations.get_text("choose_an_option", lang_code),
             key="comparison_metrics"
         )
         

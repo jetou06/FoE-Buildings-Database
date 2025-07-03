@@ -169,7 +169,7 @@ class ColumnSelector:
         
         return selected_list
     
-    def render_enhanced_column_selector(self) -> List[str]:
+    def render_enhanced_column_selector(self, show_search: bool = True) -> List[str]:
         """Render the enhanced column selection UI."""
         st.markdown("---")
         st.header(translations.get_text("column_selection", lang_code=self.lang_code))
@@ -183,7 +183,7 @@ class ColumnSelector:
         selected_columns = st.session_state.selected_columns_set
         
         # Preset Selection
-        with st.expander("📋 " + translations.get_text("column_presets", lang_code=self.lang_code), expanded=False):
+        with st.expander("📋 " + translations.get_text("column_presets", lang_code=self.lang_code), expanded=True):
             preset_cols = st.columns(2)
             
             with preset_cols[0]:
@@ -229,34 +229,37 @@ class ColumnSelector:
                     st.session_state.selected_columns_set = self._apply_preset("consumables_focus", selected_columns)
                     st.rerun()
 
-        # Search functionality
-        st.subheader("🔍 " + translations.get_text("search_columns", lang_code=self.lang_code))
-        search_term = st.text_input(
-            translations.get_text("search_columns_placeholder", lang_code=self.lang_code),
-            key="column_search",
-            placeholder=translations.get_text("search_columns_placeholder", lang_code=self.lang_code)
-        )
+        # Search functionality (only show if enabled)
+        search_term = ""
+        if show_search:
+            st.subheader("🔍 " + translations.get_text("search_columns", lang_code=self.lang_code))
+            search_term = st.text_input(
+                translations.get_text("search_columns_placeholder", lang_code=self.lang_code),
+                key="column_search",
+                placeholder=translations.get_text("search_columns_placeholder", lang_code=self.lang_code)
+            )
         
         # Filter columns based on search
         filtered_columns = self._filter_columns_by_search(search_term)
         
-        # Quick actions
-        action_cols = st.columns(2)
-        with action_cols[0]:
-            if st.button(translations.get_text("select_all_visible", lang_code=self.lang_code), 
-                        use_container_width=True, key="select_all_visible"):
-                for group_cols in filtered_columns.values():
-                    st.session_state.selected_columns_set.update(group_cols)
-                st.rerun()
-        
-        with action_cols[1]:
-            if st.button(translations.get_text("deselect_all_visible", lang_code=self.lang_code), 
-                        use_container_width=True, key="deselect_all_visible"):
-                for group_cols in filtered_columns.values():
-                    st.session_state.selected_columns_set.difference_update(group_cols)
-                # Always keep 'name' column
-                st.session_state.selected_columns_set.add('name')
-                st.rerun()
+        # Quick actions (only show in advanced mode with search)
+        if show_search:
+            action_cols = st.columns(2)
+            with action_cols[0]:
+                if st.button(translations.get_text("select_all_visible", lang_code=self.lang_code), 
+                            use_container_width=True, key="select_all_visible"):
+                    for group_cols in filtered_columns.values():
+                        st.session_state.selected_columns_set.update(group_cols)
+                    st.rerun()
+            
+            with action_cols[1]:
+                if st.button(translations.get_text("deselect_all_visible", lang_code=self.lang_code), 
+                            use_container_width=True, key="deselect_all_visible"):
+                    for group_cols in filtered_columns.values():
+                        st.session_state.selected_columns_set.difference_update(group_cols)
+                    # Always keep 'name' column
+                    st.session_state.selected_columns_set.add('name')
+                    st.rerun()
         
         # Clear all button on its own row
         if st.button(translations.get_text("clear_all_selections", lang_code=self.lang_code), 
@@ -322,7 +325,7 @@ class ColumnSelector:
         return self._sort_columns_by_group_order(st.session_state.selected_columns_set)
 
 
-def render_enhanced_column_selector(df_original: pd.DataFrame, lang_code: str) -> List[str]:
+def render_enhanced_column_selector(df_original: pd.DataFrame, lang_code: str, show_search: bool = True) -> List[str]:
     """Convenience function to render the enhanced column selector."""
     selector = ColumnSelector(df_original, lang_code)
-    return selector.render_enhanced_column_selector() 
+    return selector.render_enhanced_column_selector(show_search=show_search) 

@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 # logger.addHandler(logfile)
 
 # --- File Paths ---
-METADATA_FILE_PATH_TEMPLATE = "https://raw.githubusercontent.com/Banamangas/FoE-Buildings-Database/refs/heads/main/metadata-zz0-129.json" # Use double backslashes or raw string
+METADATA_FILE_PATH_TEMPLATE = "https://raw.githubusercontent.com/Banamangas/FoE-Buildings-Database/refs/heads/main/metadata-zz0-129.json" 
 DB_PATH = 'foe_buildings.db'
 ASSETS_PATH = 'assets'
 TRANSLATIONS_PATH = 'translations'
@@ -44,6 +44,31 @@ ERAS_DICT = {
     "BronzeAge": "Bronze Age"
 }
 
+ERAS_LEVEL_MAP = {
+    22: "SpaceAgeSpaceHub",
+    21: "SpaceAgeTitan",
+    20: "SpaceAgeJupiterMoon",
+    19: "SpaceAgeVenus",
+    18: "SpaceAgeAsteroidBelt",
+    17: "SpaceAgeMars",
+    16: "VirtualFuture",
+    15: "OceanicFuture",
+    14: "ArcticFuture",
+    13: "FutureEra",
+    12: "TomorrowEra",
+    11: "ContemporaryEra",
+    10: "PostModernEra",
+    9: "ModernEra",
+    8: "ProgressiveEra",
+    7: "IndustrialAge",
+    6: "ColonialAge",
+    5: "LateMiddleAge",
+    4: "HighMiddleAge",
+    3: "EarlyMiddleAge",
+    2: "IronAge",
+    1: "BronzeAge"
+}
+
 # Columns that represent outputs for weighting
 WEIGHTABLE_COLUMNS = [
     "forge_points", "forgepoint_package",
@@ -64,7 +89,7 @@ WEIGHTABLE_COLUMNS = [
 COLUMN_GROUPS = {
     "basic_info": {
         "key": "basic_info", 
-        "columns": ["Event", "Weighted Efficiency", "Total Score", "size", "Nbr of squares (Avg)", "Road", "Limited", "Ally room", "Population", "Happiness"]
+        "columns": ["Event", "Weighted Efficiency", "Total Score", "size", "Nbr of squares (Avg)", "Road", "Limited", "Ally room", "Population", "Happiness", "Quantity", "Source"]
     },
     "production": {
         "key": "production",
@@ -111,12 +136,12 @@ COLUMN_GROUPS = {
 ICON_EXCLUDED_COLUMNS = {
     'name', 'Translated Era', 'Total Score',
     'Unit type', 'Next Age Unit type',
-    'Weighted Efficiency'
+    'Weighted Efficiency', 'Quantity', 'Source'
 }
 
 PER_SQUARE_EXCLUDED_COLUMNS = [
     'name', 'Event', 'Translated Era', 'Nbr of squares (Avg)', 'Road', 'Limited', 'Ally room', 'size',
-    'Unit type', 'Next Age Unit type', 'Other productions', 'Weighted Efficiency', 'Total Score'
+    'Unit type', 'Next Age Unit type', 'Other productions', 'Weighted Efficiency', 'Total Score', 'Quantity', 'Source'
 ]
 
 # Columns formatted as percentages

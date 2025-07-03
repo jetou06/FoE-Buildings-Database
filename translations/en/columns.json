@@ -73,6 +73,8 @@
     "finish_goods_production": "Finish Goods Production",
     "finish_all_supplies": "Finish All Supply Productions",
     "Other productions": "Other productions",
+    "Quantity": "Quantity",
+    "Source": "Source",
     "Translated Era": "Era",
     "Weighted Efficiency": "Weighted Efficiency",
     "Total Score": "Total Score (Weighted)"

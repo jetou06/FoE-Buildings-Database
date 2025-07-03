@@ -8,6 +8,7 @@ from typing import Dict, Any
 import pandas as pd
 from PIL import Image
 from st_aggrid import AgGrid, GridOptionsBuilder, JsCode, ColumnsAutoSizeMode
+import streamlit as st
 
 # Import configurations and translations
 from config import ASSETS_PATH, ICON_EXCLUDED_COLUMNS, PERCENTAGE_COLUMNS, logger
@@ -262,7 +263,7 @@ def generate_heatmap_style_js(eff_min: float, eff_max: float) -> JsCode:
     ''')
 
 # --- AgGrid Configuration Builder ---
-
+@st.cache_resource
 def build_grid_options(df_display: pd.DataFrame,
                          lang_code: str,
                          use_icons: bool,
@@ -273,7 +274,7 @@ def build_grid_options(df_display: pd.DataFrame,
     """Builds the AgGrid GridOptions dictionary."""
 
     gb = GridOptionsBuilder.from_dataframe(df_display)
-
+    gb.configure_selection(selection_mode='single')
     # Register custom header component
     gb.configure_grid_options(components={'CustomIconHeader': CUSTOM_HEADER_COMPONENT})
 
@@ -288,6 +289,14 @@ def build_grid_options(df_display: pd.DataFrame,
         # Determine column type for filter configuration
         is_numeric = pd.api.types.is_numeric_dtype(df_display[col])
         
+        # Set minimum width for columns
+        if col == 'name':
+            min_width = 200
+        elif col == 'Event':
+            min_width = 150
+        else:
+            min_width = 100
+
         # Base configuration
         base_config = {
             "headerName": header_name,
@@ -295,7 +304,8 @@ def build_grid_options(df_display: pd.DataFrame,
             "sortable": True,
             "filter": True,
             "resizable": True,
-            "type": "customNumericColumn" if is_numeric else "customTextColumn"
+            "type": "customNumericColumn" if is_numeric else "customTextColumn",
+            "minWidth": min_width
         }
 
         # --- Apply percentage formatter ---
@@ -367,6 +377,7 @@ def build_grid_options(df_display: pd.DataFrame,
             }
         }
     }
+    grid_options['autoSizeStrategy'] = {'type': 'fitCellContents'}
 
     # Additional grid options outside builder
     grid_options.update({

@@ -195,6 +195,7 @@ class AdvancedFilterManager:
             f"Filter {translated_name}",
             options=unique_values,
             default=current_values,
+            placeholder=translations.get_text("choose_an_option", self.lang_code),
             key=f"filter_cat_{column}"
         )
         
