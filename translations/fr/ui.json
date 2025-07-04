@@ -180,7 +180,7 @@
     "select_buildings_to_compare": "Sélectionner les Bâtiments à Comparer",
     "select_metrics_to_compare": "Sélectionner les Métriques à Comparer",
     "paste_instructions_tsv": "📋 Collez vos données d'inventaire ou de cité ici.",
-    "inventory_warning": "🚨 **Attention** : Les données d'inventaire ne prennent pas en compte les packs de sélection et les packs d'amélioration. Les bâtiments affichés sont uniquement ceux qui sont déjà",
+    "inventory_warning": "🚨 **Attention** : Les données d'inventaire ne prennent pas en compte les packs de sélection et les packs d'amélioration. Les bâtiments affichés sont uniquement ceux qui sont déjà complétés.",
     "paste_data_label": "Collez vos données ici :",
     "process_data": "Traiter les Données",
     "interpretation_guide": "Guide d'Interprétation",
