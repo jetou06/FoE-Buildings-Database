@@ -108,7 +108,24 @@ def main():
             else:
                 logger.error("'Era' column not found after data load. Cannot translate eras.")
                 df_translated['Translated Era'] = "Error"
+
+            # Translate yes/no values
+            if 'Limited' in df_translated.columns:
+                df_translated['Limited'] = df_translated['Limited'].map(
+                    lambda key: translations.translate_yesno_key(key, language_code)
+                )
+            else:
+                logger.error("'Limited' column not found after data load. Cannot translate Limited.")
+                df_translated['Limited'] = "Error"
             
+            if 'Ally room' in df_translated.columns:
+                df_translated['Ally room'] = df_translated['Ally room'].map(
+                    lambda key: translations.translate_yesno_key(key, language_code)
+                )
+            else:
+                logger.error("'Ally room' column not found after data load. Cannot translate Ally room.")
+                df_translated['Ally room'] = "Error"
+
             return df_translated
         
         # Apply cached translations
