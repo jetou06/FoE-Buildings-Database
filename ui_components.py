@@ -240,6 +240,23 @@ PERCENTAGE_FORMATTER = JsCode('''
         return params.value;
     }''')
 
+NOPERCENTAGE_FORMATTER = JsCode('''
+    function(params) {
+        if (params.value != null) {
+            if (typeof params.value === 'number') {
+                if (params.value !== 0) {
+                    return params.value;
+                }
+                return '0';
+            }
+            if (typeof params.value === 'boolean') {
+                return params.value ? '✔️' : '❌';
+            }
+            return params.value;
+        }
+        return 'N/A'; // Default for null/undefined values
+    }''')
+
 def generate_heatmap_style_js(eff_min: float, eff_max: float) -> JsCode:
     """Generates the JsCode for heatmap cell styling."""
     return JsCode(f'''
@@ -312,6 +329,9 @@ def build_grid_options(df_display: pd.DataFrame,
         if col in PERCENTAGE_COLUMNS:
             base_config["valueFormatter"] = PERCENTAGE_FORMATTER
             base_config["filterParams"] = {'valueFormatter': PERCENTAGE_FORMATTER}
+        else:
+            base_config["valueFormatter"] = NOPERCENTAGE_FORMATTER
+            base_config["filterParams"] = {'valueFormatter': NOPERCENTAGE_FORMATTER}
 
         # --- Apply Heatmap Style to Weighted Efficiency ---
         if col == 'Weighted Efficiency' and heatmap_style:
