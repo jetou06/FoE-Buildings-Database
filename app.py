@@ -674,9 +674,11 @@ def main():
         # --- Table Subtab ---
         with analysis_subtabs[0]:
             try:
-                # Initialize efficiency columns
-                df_viz_filtered['Weighted Efficiency'] = 0.0
-                df_viz_filtered['Total Score'] = 0.0
+                # Initialize efficiency columns if they don't exist
+                if 'Weighted Efficiency' not in df_viz_filtered.columns:
+                    df_viz_filtered['Weighted Efficiency'] = 0.0
+                if 'Total Score' not in df_viz_filtered.columns:
+                    df_viz_filtered['Total Score'] = 0.0
                 
                 # --- Prepare Display Columns ---
                 # Filter columns that exist in the filtered dataframe

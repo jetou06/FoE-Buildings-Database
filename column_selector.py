@@ -77,8 +77,8 @@ class ColumnSelector:
     
     def _apply_preset(self, preset_key: str, selected_columns: Set[str]) -> Set[str]:
         """Apply a column preset."""
-        if preset_key in self.COLUMN_PRESETS:
-            preset_columns = self.COLUMN_PRESETS[preset_key]["columns"]
+        if preset_key in config.COLUMN_PRESETS:
+            preset_columns = config.COLUMN_PRESETS[preset_key]["columns"]
             # Only include columns that are actually available
             available_preset_columns = [
                 col for col in preset_columns 
@@ -138,7 +138,7 @@ class ColumnSelector:
         # Initialize session state for selected columns if not exists
         if 'selected_columns_set' not in st.session_state:
             # Default selection
-            default_columns = self.COLUMN_PRESETS["basic_analysis"]["columns"]
+            default_columns = config.COLUMN_PRESETS["basic_analysis"]["columns"]
             st.session_state.selected_columns_set = set(default_columns + ['name'])
         
         selected_columns = st.session_state.selected_columns_set
