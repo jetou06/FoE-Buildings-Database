@@ -3,6 +3,7 @@ import logging
 import os
 from functools import lru_cache
 from typing import Dict
+from re import sub
 
 from config import ERAS_DICT, logger
 
@@ -144,6 +145,21 @@ def translate_era_key(era_key: str, lang_code: str) -> str:
     logger.warning(f"Could not translate era key '{era_key}' for lang '{lang_code}'. Returning key.")
     return era_key
 
+def translate_yesno_key(yesno_key: str, lang_code: str) -> str:
+    """Translate an eyesno key using pre-loaded dictionaries and ERAS_DICT fallback."""
+
+    result = yesno_key
+    result = sub('^No', get_text("No", lang_code), result)
+    result = sub('^Yes', get_text("Yes", lang_code), result)
+    result = sub('collections$', get_text("collections", lang_code), result)
+    result = sub('days$', get_text("days", lang_code), result)
+    result = sub('^Military', get_text("Military", lang_code), result)
+    result = sub('Any rarity$', get_text("Any rarity", lang_code), result)
+    result = sub('Common$', get_text("Common", lang_code), result)
+    result = sub('Uncommon$', get_text("Uncommon", lang_code), result)
+    result = sub('Rare$', get_text("Rare", lang_code), result)
+
+    return result  
 # --- Generic Translation with Variables (Example, needs specific implementation if used) ---
 # Placeholder - Adapt original logic if needed, using loaded dicts
 # def get_localized_text_with_vars(key, lang_code, **variables):
