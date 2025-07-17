@@ -470,7 +470,7 @@ def merge_with_database(building_data: Dict[str, Any], df_original: pd.DataFrame
     return result_df
 
 
-def save_to_localStorage(data: Dict[str, Any], key: str) -> None:
+def save_to_session_state(data: Dict[str, Any], key: str) -> None:
     """Save data to browser localStorage via session state (Streamlit-compatible persistence).
     
     Args:
@@ -487,7 +487,7 @@ def save_to_localStorage(data: Dict[str, Any], key: str) -> None:
         logger.error(f"Failed to save to session storage: {e}")
 
 
-def load_from_localStorage(key: str) -> Optional[Dict[str, Any]]:
+def load_from_session_state(key: str) -> Optional[Dict[str, Any]]:
     """Load data from browser localStorage via session state (Streamlit-compatible persistence).
     
     Args:
@@ -594,9 +594,9 @@ def render_city_analysis_tab(df_original: pd.DataFrame, user_weights: Dict[str, 
     
     # Load persisted data on startup
     if st.session_state.imported_inventory is None:
-        st.session_state.imported_inventory = load_from_localStorage("inventory_data")
+        st.session_state.imported_inventory = load_from_session_state("inventory_data")
     if st.session_state.imported_city is None:
-        st.session_state.imported_city = load_from_localStorage("city_data")
+        st.session_state.imported_city = load_from_session_state("city_data")
     
     # Import section
     st.subheader("📥 " + translations.get_text("import_data", lang_code))
@@ -627,7 +627,7 @@ def render_city_analysis_tab(df_original: pd.DataFrame, user_weights: Dict[str, 
                 if valid_inventory:
                     st.session_state.imported_inventory = valid_inventory
                     # Save to persistence
-                    save_to_localStorage(valid_inventory, "inventory_data")
+                    save_to_session_state(valid_inventory, "inventory_data")
                     
                     # Calculate totals for success message
                     total_quantity = sum(data.get('quantity', data) if isinstance(data, dict) else data for data in valid_inventory.values())
@@ -671,7 +671,7 @@ def render_city_analysis_tab(df_original: pd.DataFrame, user_weights: Dict[str, 
                 if valid_city:
                     st.session_state.imported_city = parsed_city
                     # Save to persistence
-                    save_to_localStorage(parsed_city, "city_data")
+                    save_to_session_state(parsed_city, "city_data")
                     
                     # Show success notification
                     total_buildings = sum(data['quantity'] for data in parsed_city.values())
@@ -796,7 +796,7 @@ def render_city_analysis_tab(df_original: pd.DataFrame, user_weights: Dict[str, 
                     show_toast_notification(f"Error calculating efficiency: {str(e)}", "error")
             
             # Save processed data to persistence
-            save_to_localStorage(all_building_data, "merged_data")
+            save_to_session_state(all_building_data, "merged_data")
             
             # Always show only owned buildings from imported data
             df_display = df_imported.copy()

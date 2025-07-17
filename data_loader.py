@@ -28,21 +28,21 @@ def get_db_connection(db_path: str = DB_PATH) -> sqlite3.Connection:
         raise # Reraise critical error
 
 # --- Building Data Processing Class ---
-# Assuming the optimized BuildingAnalyzer that parses directly to dicts
 class BuildingAnalyzer:
-    """Manages the analysis of FoE buildings directly from JSON."""
+    """Manages the analysis of FoE buildings directly from JSON.
+    
+    This class is responsible for loading and analyzing building data from the metadata JSON files.
+    It provides methods to calculate various metrics and properties of the buildings.
+    """
 
     def __init__(self, file_path: str):
         self.file_path = file_path
-        # Store data as a list of dictionaries directly
         self.building_data_list: List[Dict[str, Any]] = []
         self.df = None
 
-    # --- Helper methods moved from Building class (static or adapted) ---
-
     @staticmethod
     def _calculate_size_data(components: Dict) -> Tuple[int, int, str, float, bool]:
-        """Calculate size data directly from components."""
+        """Calculate size data and road requirements directly from components."""
         placement_size = components.get('AllAge', {}).get('placement', {}).get('size', {})
         height = placement_size.get('y', 0)
         width = placement_size.get('x', 0)
@@ -55,7 +55,10 @@ class BuildingAnalyzer:
 
     @staticmethod
     def _check_limitations(components: Dict) -> str:
-        """Check limitations directly from components."""
+        """Check limitations directly from components.
+        
+        This method checks if a building is limited and returns the type of limitation.
+        """
         limited_comp = components.get('AllAge', {}).get('limited')
         if not limited_comp:
             return "No"
@@ -70,7 +73,10 @@ class BuildingAnalyzer:
 
     @staticmethod
     def _get_ally_room(components: Dict) -> str:
-        """Get ally room directly from components."""
+        """Get ally room directly from components.
+        
+        This method checks if a building has an ally room and returns the type of ally room as a string.
+        """
         ally_comp = components.get('AllAge', {}).get('ally')
         if not ally_comp:
             return 'No'
@@ -398,7 +404,7 @@ class BuildingAnalyzer:
             "Blue GE Attack": 0.0, "Blue GE Defense": 0.0, "Blue QI Attack": 0.0, "Blue QI Defense": 0.0,
             "Coin %": 0.0, "QI Coin %": 0.0, "QI Coin at start": 0.0, "Supplies %": 0.0,
             "QI Supplies %": 0.0, "QI Supplies at start": 0.0, "QI Goods at start": 0.0,
-            "QI Units at start": 0.0, "QA per hour": 0.0, "FP boost": 0.0, "Guild Goods Production %": 0.0,
+            "QI Units at start": 0.0, "QA per hour": 0.0, "QA Capacity": 0.0, "FP boost": 0.0, "Guild Goods Production %": 0.0,
             "Special Goods Production %": 0.0, "Medal Boost": 0.0, "Goods Boost": 0.0
         }
         boost_map = {
@@ -427,6 +433,7 @@ class BuildingAnalyzer:
             ('guild_raids_supplies_production', 'all'): ["QI Supplies %"], ('guild_raids_supplies_start', 'all'): ["QI Supplies at start"],
             ('guild_raids_goods_start', 'all'): ["QI Goods at start"], ('guild_raids_units_start', 'all'): ["QI Units at start"],
             ('guild_raids_action_points_collection', 'all'): ["QA per hour"],
+            ('guild_raids_action_points_capacity', 'all'): ["QA Capacity"],
             ('forge_points_production', 'all'): ["FP boost"], ('guild_goods_production', 'all'): ["Guild Goods Production %"],
             ('special_goods_production', 'all'): ["Special Goods Production %"],
             ('medal_production', 'all'): ["Medal Boost"], ('goods_production', 'all'): ["Goods Boost"]

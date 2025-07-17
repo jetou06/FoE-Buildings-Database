@@ -159,7 +159,8 @@ def translate_yesno_key(yesno_key: str, lang_code: str) -> str:
     result = sub('Uncommon$', get_text("Uncommon", lang_code), result)
     result = sub('Rare$', get_text("Rare", lang_code), result)
 
-    return result  
+    return result
+  
 # --- Generic Translation with Variables (Example, needs specific implementation if used) ---
 # Placeholder - Adapt original logic if needed, using loaded dicts
 # def get_localized_text_with_vars(key, lang_code, **variables):

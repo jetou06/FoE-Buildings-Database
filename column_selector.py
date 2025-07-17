@@ -9,45 +9,6 @@ import ui_components
 class ColumnSelector:
     """Enhanced column selection UI with search, presets, and better organization."""
     
-    # Predefined column presets for different analysis types
-    COLUMN_PRESETS = {
-        "basic_analysis": {
-            "name_key": "preset_basic_analysis",
-            "columns": ["Event", "size", "Road", "Limited", "Ally room"]
-        },
-        "production_focus": {
-            "name_key": "preset_production_focus", 
-            "columns": ["Weighted Efficiency", "forge_points", "goods", "prev_age_goods", "next_age_goods", "special_goods", "guild_goods"]
-        },
-        "military_focus": {
-            "name_key": "preset_military_focus",
-            "columns": ["Weighted Efficiency", "rogues", 
-                        "fast_units", "heavy_units", "ranged_units", "artillery_units", "light_units", 
-                        "next_age_fast_units", "next_age_heavy_units", "next_age_ranged_units", "next_age_artillery_units", "next_age_light_units"]
-        },
-        "ge_focus": {
-            "name_key": "preset_ge_focus",
-            "columns": ["Weighted Efficiency", "Red Attack", "Red Defense", "Blue Attack", "Blue Defense", "Red GE Attack", "Red GE Defense", "Blue GE Attack", "Blue GE Defense"]
-        },
-        "gbg_focus": {
-            "name_key": "preset_gbg_focus",
-            "columns": ["Weighted Efficiency", "Red Attack", "Red Defense", "Blue Attack", "Blue Defense","Red GBG Attack", "Red GBG Defense", "Blue GBG Attack", "Blue GBG Defense"]
-        },
-        "qi_focus": {
-            "name_key": "preset_qi_focus",
-            "columns": ["Weighted Efficiency", "Red QI Attack", "Red QI Defense", "Blue QI Attack", "Blue QI Defense",
-                    "QI Coin %", "QI Coin at start", "QI Supplies %", "QI Supplies at start", "QI Goods at start", "QI Units at start", "QA per hour"]
-        },
-        "consumables_focus": {
-            "name_key": "preset_consumables_focus",
-            "columns": ["Weighted Efficiency", "finish_special_production", "finish_goods_production", "rush_mass_supplies_24h", 
-                        "store_kit", "mass_self_aid_kit", "self_aid_kit", "renovation_kit", "one_up_kit"]
-        },
-        "fsp_usage": {
-            "name_key": "preset_fsp_usage",
-            "columns": ["Weighted Efficiency", "Total Score", "finish_special_production", "forge_points", "goods", "prev_age_goods", "next_age_goods", "guild_goods"]
-        }
-    }
     
     def __init__(self, df_original: pd.DataFrame, lang_code: str):
         self.df_original = df_original
