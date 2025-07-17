@@ -141,8 +141,6 @@ def main():
         def cached_calculate_era_stats(df: pd.DataFrame) -> pd.DataFrame:
             return calculations.calculate_era_stats(df)
         
-        era_stats_df = cached_calculate_era_stats(df_original)
-        
         # --- Cache Building Images Manager ---
         @st.cache_resource
         def get_cached_image_manager():
@@ -312,9 +310,19 @@ def main():
                     
 
     # --- Initialize Weights ---
-    # Initialize weights dictionary before tabs
-    user_weights = {}
+    # Initialize weights dictionary before tabs and preserve in session state
+    if 'user_weights' not in st.session_state:
+        st.session_state.user_weights = {}
+    if 'user_context' not in st.session_state:
+        st.session_state.user_context = {}
+    if 'user_boosts' not in st.session_state:
+        st.session_state.user_boosts = {}
     
+    # Load current values from session state
+    user_weights = st.session_state.user_weights.copy()
+    user_context = st.session_state.user_context.copy()
+    user_boosts = st.session_state.user_boosts.copy()
+
     # ================== Main Content Area ==================
     # CSS for larger tab font size
     st.markdown("""
@@ -379,8 +387,6 @@ def main():
         # Apply army stats combination if enabled
         if combine_army_stats:
             df_era_filtered = combine_army_with_ge_gbg(df_era_filtered)
-        
-        
         
         if selected_building and selected_building != "":
             # Get the selected building data from the era-filtered dataframe
@@ -564,6 +570,10 @@ def main():
             if production_columns:
                 mask = (df_viz_filtered[production_columns] != 0).any(axis=1)
                 df_viz_filtered = df_viz_filtered[mask]
+        
+        # Initialize efficiency columns if they don't exist
+        df_viz_filtered['Weighted Efficiency'] = 0.0 # Initialize
+        df_viz_filtered['Total Score'] = 0.0 # Initialize
 
         # --- Weights Subtab (Process first for user_weights, user_context, user_boosts) ---
         with analysis_subtabs[1]:
@@ -602,15 +612,17 @@ def main():
                                         
                                     help_text = f"Points per {translations.translate_column(col_name, lang_code).lower()}"
                                     
-                                    user_weights[col_name] = st.number_input(
+                                    weight_value = st.number_input(
                                         label=f"1 {translations.translate_column(col_name, lang_code)} = ___ Points",
                                         help=help_text,
-                                        value=0.0,
+                                        value=user_weights.get(col_name, 0.0),
                                         min_value=0.0,
                                         step=0.1,
                                         format="%.1f",
                                         key=f"weight_{col_name}"
                                     )
+                                    user_weights[col_name] = weight_value
+                                    st.session_state.user_weights[col_name] = weight_value
             st.markdown("---")
             # --- User Context Section ---
             st.header(translations.get_text("user_context", lang_code))
@@ -622,21 +634,22 @@ def main():
             # Create two columns for base production inputs
             ctx_left_col, ctx_right_col = st.columns(2)
             
-            user_context = {}
             context_fields = list(config.USER_CONTEXT_FIELDS.items())
             mid_point = len(context_fields) // 2
             
             for col, fields in [(ctx_left_col, context_fields[:mid_point]), (ctx_right_col, context_fields[mid_point:])]:
                 with col:
                     for field_key, field_config in fields:
-                        user_context[field_key] = st.number_input(
+                        context_value = st.number_input(
                             label=translations.get_text(field_config["label_key"], lang_code),
                             help=translations.get_text(field_config["help_key"], lang_code),
-                            value=float(field_config["default"]),
+                            value=user_context.get(field_key, float(field_config["default"])),
                             min_value=0.0,
                             step=1.0 if field_key in ["fp_daily_production", "medal_production", "special_goods_production", "guild_goods_production"] else 100.0,
                             key=f"context_{field_key}"
                         )
+                        user_context[field_key] = context_value
+                        st.session_state.user_context[field_key] = context_value
             
             # Current Boosts Section
             st.subheader(translations.get_text("current_boosts_section", lang_code))
@@ -644,42 +657,44 @@ def main():
             # Create two columns for boost inputs
             boost_left_col, boost_right_col = st.columns(2)
             
-            user_boosts = {}
             boost_fields = list(config.USER_BOOST_FIELDS.items())
             boost_mid_point = len(boost_fields) // 2
             
             for col, fields in [(boost_left_col, boost_fields[:boost_mid_point]), (boost_right_col, boost_fields[boost_mid_point:])]:
                 with col:
                     for field_key, field_config in fields:
-                        user_boosts[field_key] = st.number_input(
+                        boost_value = st.number_input(
                             label=translations.get_text(field_config["label_key"], lang_code),
                             help=translations.get_text(field_config["help_key"], lang_code),
-                            value=float(field_config["default"]),
+                            value=user_boosts.get(field_key, float(field_config["default"])),
                             min_value=0.0,
                             max_value=1000.0,
                             step=1.0,
                             format="%.1f",
                             key=f"boost_{field_key}"
                         )
+                        user_boosts[field_key] = boost_value
+                        st.session_state.user_boosts[field_key] = boost_value
 
         # Calculate efficiency if weights are set (after processing weights subtab)
-        if any(w > 0 for w in user_weights.values()) and not df_viz_filtered.empty:
+        weights_active = any(w > 0 for w in user_weights.values()) if user_weights else False
+        logger.info(f"Main Analysis: Weights active: {weights_active}, User weights: {user_weights}")
+        
+        if weights_active and not df_viz_filtered.empty:
+            logger.info("Applying efficiency calculations to main analysis table")
             df_viz_filtered = calculations.calculate_direct_weighted_efficiency(
                 df=df_viz_filtered,
                 user_weights=user_weights,
                 user_context=user_context,
                 user_boosts=user_boosts
             )
+            logger.info("Main Analysis: Efficiency calculations completed successfully")
+        else:
+            logger.info("Main Analysis: No active weights or empty dataframe - efficiency columns remain at 0.0")
 
         # --- Table Subtab ---
         with analysis_subtabs[0]:
             try:
-                # Initialize efficiency columns if they don't exist
-                if 'Weighted Efficiency' not in df_viz_filtered.columns:
-                    df_viz_filtered['Weighted Efficiency'] = 0.0
-                if 'Total Score' not in df_viz_filtered.columns:
-                    df_viz_filtered['Total Score'] = 0.0
-                
                 # --- Prepare Display Columns ---
                 # Filter columns that exist in the filtered dataframe
                 existing_columns_for_display = []

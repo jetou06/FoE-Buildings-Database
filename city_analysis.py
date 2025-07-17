@@ -446,6 +446,7 @@ def merge_with_database(building_data: Dict[str, Any], df_original: pd.DataFrame
     
     # Calculate efficiency if weights are provided
     weights_active = any(w > 0 for w in user_weights.values()) if user_weights else False
+    logger.info(f"Merge function: Weights active: {weights_active}, User weights: {user_weights}")
     
     if weights_active:
         logger.info("Applying efficiency calculations to merged data")
@@ -573,9 +574,9 @@ def render_city_analysis_tab(df_original: pd.DataFrame, user_weights: Dict[str, 
     
     Args:
         df_original: Original buildings dataframe
-        user_weights: User weight configuration
-        user_context: User context configuration  
-        user_boosts: User boost configuration
+        user_weights: User weight configuration (from session state)
+        user_context: User context configuration (from session state)
+        user_boosts: User boost configuration (from session state)
         selected_columns: Selected columns for display
         lang_code: Language code
     """
@@ -782,6 +783,7 @@ def render_city_analysis_tab(df_original: pd.DataFrame, user_weights: Dict[str, 
             
             # Apply efficiency calculations if weights are provided
             weights_active = any(w > 0 for w in user_weights.values()) if user_weights else False
+            logger.info(f"City Analysis: Weights active: {weights_active}, User weights: {user_weights}")
             
             if weights_active:
                 try:
@@ -791,9 +793,12 @@ def render_city_analysis_tab(df_original: pd.DataFrame, user_weights: Dict[str, 
                         user_context=user_context,
                         user_boosts=user_boosts
                     )
+                    logger.info("City Analysis: Efficiency calculations completed successfully")
                 except Exception as e:
                     logger.error(f"Error applying efficiency calculations: {e}")
                     show_toast_notification(f"Error calculating efficiency: {str(e)}", "error")
+            else:
+                logger.info("City Analysis: No active weights - efficiency columns remain at 0.0")
             
             # Save processed data to persistence
             save_to_session_state(all_building_data, "merged_data")
