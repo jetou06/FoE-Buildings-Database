@@ -526,7 +526,6 @@ def main():
                         hide_index=True,
                         width='stretch',
                         height='stretch',
-                        width=600
                     )
                 else:
                     st.info(translations.get_text("no_stats_available", lang_code))
