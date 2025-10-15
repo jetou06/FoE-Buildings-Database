@@ -486,8 +486,8 @@ def main():
                                 )
                             },
                             hide_index=True,
-                            use_container_width=True,
-                            height=40*len(stats_data) if len(stats_data) > 10 else None
+                            width='stretch',
+                            height='stretch'
                         )
                     else:
                         st.info(translations.get_text("no_stats_available", lang_code))
@@ -524,8 +524,8 @@ def main():
                             )
                         },
                         hide_index=True,
-                        use_container_width=False,
-                        height=40*len(stats_data) if len(stats_data) > 10 else None,
+                        width='stretch',
+                        height='stretch',
                         width=600
                     )
                 else:
