@@ -497,7 +497,7 @@ def main():
                     st.image(
                         image_url,
                         caption=selected_building,
-                        width='stretch'
+                        width='content'
                     )
             else:
                 # No image available, show table full width
@@ -1019,7 +1019,7 @@ def main():
                                 consumables_df,
                                 column_config=column_config,
                                 hide_index=True,
-                                width='stretch',
+                                width='content',
                                 height=min(600, max(200, len(consumables_df) * 40 + 100))
                             )
                             
@@ -1194,7 +1194,7 @@ def main():
                                 qi_boosts_df,
                                 column_config=column_config,
                                 hide_index=True,
-                                width='stretch',
+                                width='content',
                                 height=min(600, max(200, len(qi_boosts_df) * 40 + 100))
                             )
                             
