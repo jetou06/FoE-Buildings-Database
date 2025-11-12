@@ -114,7 +114,7 @@ class BuildingAnalyzer:
                 # Use the value if it's non-zero
                 if current_happiness != 0: happiness = current_happiness
         return pop, happiness
-
+    
     @staticmethod
     def _get_production_data(components: Dict, era_key: str, building_name: str) -> Dict[str, Any]:
         """Calculate production values directly for a specific era."""
@@ -168,8 +168,17 @@ class BuildingAnalyzer:
             prod_component = component_data.get('production', {})
             if not prod_component: continue
             lookup_rewards = component_data.get('lookup', {}).get('rewards', {})
+            options = prod_component.get('options', [{}])
 
-            for option in prod_component.get('options', [{}])[0].get('products', []):
+            if len(options) > 1:
+                new_options = {'products': []}
+                for option in options:
+                    if not isinstance(option, dict): continue
+                    new_options['products'].append(option.get('products', [])[0])
+
+                options = [new_options]
+                    
+            for option in options[0].get('products', []):
                 if not isinstance(option, dict): continue
                 option_type = option.get('type')
                 # Drop chance default 1.0 for non-random base items, use actual if present
@@ -573,7 +582,7 @@ class BuildingAnalyzer:
                         era_instance_created = True
 
                     except Exception as e:
-                        logger.error(f"Error processing era '{era_key}' for {building_name} ({building_id}): {e}", exc_info=False) # exc_info=False keeps log cleaner
+                        logger.error(f"Error processing era '{era_key}' for {building_name} ({building_id}): {e}", exc_info=True) # exc_info=False keeps log cleaner
                         error_count += 1
                         # Continue to next era even if one fails
 
