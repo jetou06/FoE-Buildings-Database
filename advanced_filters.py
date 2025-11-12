@@ -371,7 +371,7 @@ class AdvancedFilterManager:
             # Active filters management
             # Clear all button taking full width
             if st.button(translations.get_text("clear_all_filters", lang_code=self.lang_code), 
-                       use_container_width=True, key="clear_filters"):
+                       width='stretch', key="clear_filters"):
                 st.session_state.advanced_filters = {}
                 st.session_state.active_filters_count = 0
                 st.rerun()
@@ -401,14 +401,14 @@ class AdvancedFilterManager:
                         col1, col2 = st.columns(2)
                         with col1:
                             if st.button(translations.get_text("add_filter", lang_code=self.lang_code), 
-                                       key="add_numeric_filter", use_container_width=True):
+                                       key="add_numeric_filter", width='stretch'):
                                 if filter_result:
                                     st.session_state.advanced_filters[selected_numeric_col] = filter_result
                                     st.rerun()
                         
                         with col2:
                             if st.button(translations.get_text("remove_filter", lang_code=self.lang_code), 
-                                       key="remove_numeric_filter", use_container_width=True):
+                                       key="remove_numeric_filter", width='stretch'):
                                 if selected_numeric_col in st.session_state.advanced_filters:
                                     del st.session_state.advanced_filters[selected_numeric_col]
                                     st.rerun()
@@ -431,14 +431,14 @@ class AdvancedFilterManager:
                         col1, col2 = st.columns(2)
                         with col1:
                             if st.button(translations.get_text("add_filter", lang_code=self.lang_code), 
-                                       key="add_categorical_filter", use_container_width=True):
+                                       key="add_categorical_filter", width='stretch'):
                                 if filter_result:
                                     st.session_state.advanced_filters[selected_cat_col] = filter_result
                                     st.rerun()
                         
                         with col2:
                             if st.button(translations.get_text("remove_filter", lang_code=self.lang_code), 
-                                       key="remove_categorical_filter", use_container_width=True):
+                                       key="remove_categorical_filter", width='stretch'):
                                 if selected_cat_col in st.session_state.advanced_filters:
                                     del st.session_state.advanced_filters[selected_cat_col]
                                     st.rerun()

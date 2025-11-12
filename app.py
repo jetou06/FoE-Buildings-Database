@@ -816,11 +816,8 @@ def main():
                     theme=AgGridTheme.STREAMLIT,
                     height=800,
                     width='100%',
-                    reload_data=False,
                     key=grid_key,
-                    update_mode=GridUpdateMode.SELECTION_CHANGED,
-                    data_return_mode=DataReturnMode.AS_INPUT,
-                    columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS
+                    data_return_mode=DataReturnMode.AS_INPUT
                 )
 
                 builingRows=grid_return.selected_rows                               # Get selected row

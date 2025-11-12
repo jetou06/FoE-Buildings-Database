@@ -395,7 +395,7 @@ class DataVisualizationManager:
                 translations.get_text("efficiency_per_square", self.lang_code)
             ]
             
-            st.dataframe(results_df_display, use_container_width=True)
+            st.dataframe(results_df_display, width='stretch')
             
             # Visualization of the placement
             if len(selected_for_placement) > 0:
@@ -408,7 +408,7 @@ class DataVisualizationManager:
                     title=translations.get_text("space_allocation_visualization", self.lang_code)
                 )
                 fig.update_layout(height=400)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
     
     def render_building_comparison_table(self, selected_buildings: List[str], selected_metrics: List[str], show_per_square: bool = False) -> None:
         """Render a detailed side-by-side comparison table."""
@@ -576,7 +576,7 @@ def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square
         
         if top_metric:
             fig = viz_manager.create_top_buildings_chart(top_metric, top_n, top_chart_type)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
     
     # Building Comparison Tab
     with viz_tabs[1]:
@@ -636,7 +636,7 @@ def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square
                 with chart_col:
                     st.subheader("📊 " + translations.get_text("radar_chart", lang_code))
                     fig = viz_manager.create_comparison_chart(selected_buildings, comparison_metrics, show_per_square)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
                 
                 with table_col:
                                         
@@ -691,7 +691,7 @@ def render_data_visualizations(df: pd.DataFrame, lang_code: str, show_per_square
             else:
                 # Only radar chart available
                 fig = viz_manager.create_comparison_chart(selected_buildings, comparison_metrics, show_per_square)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
         
         elif selected_buildings and comparison_metrics:
             # Only table available (less than 3 metrics for radar chart)
