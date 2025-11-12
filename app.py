@@ -324,40 +324,113 @@ def main():
     user_boosts = st.session_state.user_boosts.copy()
 
     # ================== Main Content Area ==================
-    # CSS for larger tab font size
+    # CSS for tab-like radio buttons with session state persistence
     st.markdown("""
     <style>
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 40px;
+    /* Style for main tab selector (radio buttons styled as tabs) */
+    div[data-testid="stHorizontalBlock"]:has(div[data-testid="stRadio"]) {
+        background-color: transparent;
+        margin-bottom: 1.5rem;
     }
-    .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
-        font-size: 1.4rem !important;
-        font-weight: 600 !important;
-        padding-left: 20px !important;
-        padding-right: 20px !important;
+    
+    div[data-testid="stRadio"] div[role="radiogroup"] {
+        gap: 0.25rem !important;
+        background-color: transparent;
+        border-bottom: 0.125rem solid rgba(250, 250, 250, 0.1);
+        padding-bottom: 0;
+        display: flex;
+        flex-wrap: wrap;
     }
-    .stTabs [data-baseweb="tab-list"] button#tabs-bui90-tab-0 [data-testid="stMarkdownContainer"] p, .stTabs [data-baseweb="tab-list"] button#tabs-bui90-tab-1 [data-testid="stMarkdownContainer"] p {
-        font-size: 1.2rem !important;
-        font-weight: 600 !important;
+    
+    div[data-testid="stRadio"] div[role="radiogroup"] label {
+        background-color: black;
+        border-bottom: 0.125rem solid rgba(250, 250, 250, 0.1);
+        border-radius: 8px 8px 0 0;
+        padding: 0.75rem 1.5rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-weight: 600;
+        color: white;
+        font-size: 1.1rem;
+        position: relative;
+        margin-bottom: -2px;
+    }
+
+    div[data-testid="stRadio"] div[role="radiogroup"] label p {
+        font-size: 1.4rem;
+        font-weight: 600;
+    }
+    
+    div[data-testid="stRadio"] div[role="radiogroup"] label:hover {
+        background-color: black;
+    }
+
+    div[data-testid="stRadio"] div[role="radiogroup"] label:hover p {
+        color: rgb(184, 162, 20);
+        font-weight: 600;   
+    }
+    
+    div[data-testid="stRadio"] div[role="radiogroup"] label:has(input[type="radio"]:checked) {
+        background-color: black;
+        border-bottom: 3px solid rgb(184, 162, 20);
+        font-weight: 600;
+        color: black!important;
+        box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+    }
+
+    div[data-testid="stRadio"] div[role="radiogroup"] label div[class*="st-bg"] {
+        display:none;
+    }
+
+    div[data-testid="stRadio"] div[role="radiogroup"] label:has(input[type="radio"]:checked) p {
+        color: rgb(184, 162, 20);
+        font-weight: 600;
+    }
+    
+    /* Hide the radio button circles */
+    div[data-testid="stRadio"] input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        display:none;
+    }
+    
+    /* Ensure text is visible */
+    div[data-testid="stRadio"] label div[data-testid="stMarkdownContainer"] p {
+        margin: 0;
+        padding: 0;
     }
     </style>
     """, unsafe_allow_html=True)
     
-    tabs = st.tabs([
+    # Initialize active tab in session state
+    if 'active_main_tab' not in st.session_state:
+        st.session_state.active_main_tab = 0
+    
+    # Tab selector with session state persistence
+    tab_names = [
         translations.get_text("building_details", lang_code),
         translations.get_text("building_analysis", lang_code),
         translations.get_text("city_analysis", lang_code),
         translations.get_text("visualizations", lang_code)
-    ])
+    ]
     
-    # Track which tab is active using a more stable approach
-    if 'active_tab' not in st.session_state:
-        st.session_state.active_tab = 0
+    selected_tab = st.radio(
+        label="Navigation",
+        options=range(len(tab_names)),
+        format_func=lambda x: tab_names[x],
+        index=st.session_state.active_main_tab,
+        key="main_tab_selector",
+        horizontal=True,
+        label_visibility="collapsed"
+    )
+    
+    # Update session state when tab changes
+    if selected_tab != st.session_state.active_main_tab:
+        st.session_state.active_main_tab = selected_tab
+        st.rerun()
     
     # --- Building Details Tab (First Tab) ---
-    with tabs[0]:
-        # Track tab activation without rerun
-        st.session_state.active_tab = 0
+    if st.session_state.active_main_tab == 0:
         
         st.header(translations.get_text("building_stats", lang_code))
         
@@ -532,50 +605,68 @@ def main():
         else:
             st.info(translations.get_text("no_building_selected", lang_code))
     
-    # --- Building Analysis Tab (Second Tab) ---
-    with tabs[1]:
-        # Track tab activation without rerun
-        st.session_state.active_tab = 1
+    # Prepare filtered data for Analysis and Visualizations tabs (shared data)
+    # Apply the same filtering as the previous Home tab for consistency
+    df_viz_filtered = df_filtered_by_advanced[df_filtered_by_advanced['Translated Era'] == selected_translated_era].copy()
+    if selected_events:
+        df_viz_filtered = df_viz_filtered[df_viz_filtered['Event'].isin(selected_events)]
+    if name_filter:
+        df_viz_filtered = df_viz_filtered[df_viz_filtered['name'].isin(name_filter)]
+    
+    # Apply army stats combination if enabled
+    if combine_army_stats:
+        df_viz_filtered = combine_army_with_ge_gbg(df_viz_filtered)
+    
+    # Apply zero-production filter if enabled
+    if hide_zero_production:
+        basic_info_columns = config.COLUMN_GROUPS["basic_info"]["columns"]
+        production_columns = [
+            col for col in df_viz_filtered.columns 
+            if col not in basic_info_columns
+            and pd.api.types.is_numeric_dtype(df_viz_filtered[col])
+        ]
         
-        # Create subtabs for Table, Weights, Consumables, QI Boosts, and QI Optimizer
-        analysis_subtabs = st.tabs([
+        if production_columns:
+            mask = (df_viz_filtered[production_columns] != 0).any(axis=1)
+            df_viz_filtered = df_viz_filtered[mask]
+    
+    # Initialize efficiency columns if they don't exist
+    df_viz_filtered['Weighted Efficiency'] = 0.0 # Initialize
+    df_viz_filtered['Total Score'] = 0.0 # Initialize
+    
+    # --- Building Analysis Tab (Second Tab) ---
+    if st.session_state.active_main_tab == 1:
+        
+        # Initialize active subtab in session state
+        if 'active_analysis_subtab' not in st.session_state:
+            st.session_state.active_analysis_subtab = 0
+        
+        # Subtab selector with session state persistence
+        subtab_names = [
             translations.get_text("building_table", lang_code),
             translations.get_text("weights", lang_code),
             translations.get_text("consumables_analysis", lang_code),
             translations.get_text("qi_boosts_analysis", lang_code)
             # translations.get_text("qi_optimizer", lang_code)
-        ])
+        ]
         
-        # Apply the same filtering as the previous Home tab for consistency
-        df_viz_filtered = df_filtered_by_advanced[df_filtered_by_advanced['Translated Era'] == selected_translated_era].copy()
-        if selected_events:
-            df_viz_filtered = df_viz_filtered[df_viz_filtered['Event'].isin(selected_events)]
-        if name_filter:
-            df_viz_filtered = df_viz_filtered[df_viz_filtered['name'].isin(name_filter)]
+        selected_subtab = st.radio(
+            label="Analysis Navigation",
+            options=range(len(subtab_names)),
+            format_func=lambda x: subtab_names[x],
+            index=st.session_state.active_analysis_subtab,
+            key="analysis_subtab_selector",
+            horizontal=True,
+            label_visibility="collapsed"
+        )
         
-        # Apply army stats combination if enabled
-        if combine_army_stats:
-            df_viz_filtered = combine_army_with_ge_gbg(df_viz_filtered)
-        
-        # Apply zero-production filter if enabled
-        if hide_zero_production:
-            basic_info_columns = config.COLUMN_GROUPS["basic_info"]["columns"]
-            production_columns = [
-                col for col in df_viz_filtered.columns 
-                if col not in basic_info_columns
-                and pd.api.types.is_numeric_dtype(df_viz_filtered[col])
-            ]
-            
-            if production_columns:
-                mask = (df_viz_filtered[production_columns] != 0).any(axis=1)
-                df_viz_filtered = df_viz_filtered[mask]
-        
-        # Initialize efficiency columns if they don't exist
-        df_viz_filtered['Weighted Efficiency'] = 0.0 # Initialize
-        df_viz_filtered['Total Score'] = 0.0 # Initialize
+        # Update session state when subtab changes
+        if selected_subtab != st.session_state.active_analysis_subtab:
+            st.session_state.active_analysis_subtab = selected_subtab
+            st.rerun()
 
         # --- Weights Subtab (Process first for user_weights, user_context, user_boosts) ---
-        with analysis_subtabs[1]:
+        if st.session_state.active_analysis_subtab == 1:
             # --- Weighting Inputs ---
             st.header(translations.get_text("efficiency_weights", lang_code))
             st.markdown(translations.get_text("efficiency_help_direct", lang_code))
@@ -692,7 +783,7 @@ def main():
             logger.info("Main Analysis: No active weights or empty dataframe - efficiency columns remain at 0.0")
 
         # --- Table Subtab ---
-        with analysis_subtabs[0]:
+        if st.session_state.active_analysis_subtab == 0:
             try:
                 # --- Prepare Display Columns ---
                 # Filter columns that exist in the filtered dataframe
@@ -871,7 +962,7 @@ def main():
                 logger.error(f"Error during main app execution: {e}", exc_info=True)
         
         # --- Consumables Analysis Subtab ---
-        with analysis_subtabs[2]:
+        if st.session_state.active_analysis_subtab == 2:
             st.header("🛠️ " + translations.get_text("consumables_analysis", lang_code))
             st.markdown(translations.get_text("consumables_analysis_help", lang_code))
             
@@ -1052,7 +1143,7 @@ def main():
                     st.info(translations.get_text("select_consumables_to_analyze", lang_code))
         
         # --- QI Boosts Analysis Subtab ---
-        with analysis_subtabs[3]:
+        if st.session_state.active_analysis_subtab == 3:
             st.header("🌌 " + translations.get_text("qi_boosts_analysis", lang_code))
             st.markdown(translations.get_text("qi_boosts_analysis_help", lang_code))
             
@@ -1249,9 +1340,7 @@ def main():
             # qi_optimizer_test.render_qi_optimizer(df_viz_filtered, lang_code, cached_image_manager)
     
     # --- City Analysis Tab ---
-    with tabs[2]:
-        # Track tab activation without rerun
-        st.session_state.active_tab = 2
+    if st.session_state.active_main_tab == 2:
         
         # Render the City Analysis interface
         city_analysis.render_city_analysis_tab(
@@ -1264,9 +1353,7 @@ def main():
         )
     
     # --- Visualizations Tab ---
-    with tabs[3]:
-        # Track tab activation without rerun
-        st.session_state.active_tab = 3
+    if st.session_state.active_main_tab == 3:
         
         # Use the same filtered data from the analysis tab
         # Apply "Per Square" Calculation to visualization data if enabled
