@@ -41,7 +41,7 @@ class BuildingImageManager:
                     transformed_id = re.sub(r"R_", "R_SS_", building["asset_id"])
                     building_mappings.append((transformed_id, building['asset_id']))
                 elif building["asset_id"].startswith("L_"):
-                    # Transform S_ to S_SS_ for image matching
+                    # Transform L_ to L_SS_ for image matching
                     transformed_id = re.sub(r"L_", "L_SS_", building["asset_id"])
                     building_mappings.append((transformed_id, building['asset_id']))
             
