@@ -332,5 +332,9 @@
     "Common": "Common",
     "Uncommon": "Uncommon",
     "Rare": "Rare",
-    "Epic": "Epic"
+    "Epic": "Epic",
+    "reset_preferences": "Reset All Preferences",
+    "preferences_reset": "All preferences have been reset to default values.",
+    "preferences_saved": "Preferences automatically saved",
+    "active_weights": "active weights"
 }

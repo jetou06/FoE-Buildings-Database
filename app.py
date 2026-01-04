@@ -10,6 +10,7 @@ from st_aggrid.grid_options_builder import GridOptionsBuilder
 from streamlit_dynamic_filters import DynamicFilters
 import json
 import numpy as np
+import st_cookie
 
 # --- Local Modules Imports ---
 import config
@@ -36,7 +37,7 @@ def main():
         page_title="FoE Building Database",
         page_icon=config.APP_ICON 
     )
-
+    
     # --- Language Selection with Session State ---
     # Initialize language in session state if not exists
     if 'language' not in st.session_state:
@@ -309,19 +310,45 @@ def main():
 
                     
 
-    # --- Initialize Weights ---
-    # Initialize weights dictionary before tabs and preserve in session state
+    # --- Initialize Weights with Cookie Persistence ---
+    # Use st_cookie to sync preferences between session state and cookies
+    
+    # Initialize the preferences JSON in session state if not exists
+    if 'user_preferences_json' not in st.session_state:
+        st.session_state.user_preferences_json = "{}"
+    
+    # Use st_cookie.sync to persist the JSON string to cookies
+    with st_cookie.sync("user_preferences_json"):
+        pass  # The sync happens automatically
+    
+    # Parse the preferences from the synced JSON
+    try:
+        saved_prefs = json.loads(st.session_state.user_preferences_json) if st.session_state.user_preferences_json else {}
+    except (json.JSONDecodeError, TypeError):
+        saved_prefs = {}
+    
+    # Initialize individual dicts from saved preferences or defaults
     if 'user_weights' not in st.session_state:
-        st.session_state.user_weights = {}
-    if 'user_context' not in st.session_state:
-        st.session_state.user_context = {}
-    if 'user_boosts' not in st.session_state:
-        st.session_state.user_boosts = {}
+        st.session_state.user_weights = saved_prefs.get('weights', {})
+        st.session_state.user_context = saved_prefs.get('context', {})
+        st.session_state.user_boosts = saved_prefs.get('boosts', {})
     
     # Load current values from session state
     user_weights = st.session_state.user_weights.copy()
     user_context = st.session_state.user_context.copy()
     user_boosts = st.session_state.user_boosts.copy()
+    
+    # Helper function to save preferences to the synced JSON
+    def save_preferences_to_cookie():
+        """Serialize and save preferences to the cookie-synced session state."""
+        prefs = {
+            'weights': st.session_state.user_weights,
+            'context': st.session_state.user_context,
+            'boosts': st.session_state.user_boosts
+        }
+        st.session_state.user_preferences_json = json.dumps(prefs)
+        # Trigger cookie update
+        st_cookie.update("user_preferences_json")
 
     # ================== Main Content Area ==================
     # CSS for tab-like radio buttons with session state persistence
@@ -667,6 +694,7 @@ def main():
 
         # --- Weights Subtab (Process first for user_weights, user_context, user_boosts) ---
         if st.session_state.active_analysis_subtab == 1:
+            logger.warning("🎯 === ENTERING WEIGHTS SUBTAB ===")
             # --- Weighting Inputs ---
             st.header(translations.get_text("efficiency_weights", lang_code))
             st.markdown(translations.get_text("efficiency_help_direct", lang_code))
@@ -705,14 +733,14 @@ def main():
                                     weight_value = st.number_input(
                                         label=f"1 {translations.translate_column(col_name, lang_code)} = ___ Points",
                                         help=help_text,
-                                        value=user_weights.get(col_name, 0.0),
+                                        value=float(user_weights.get(col_name, 0.0)),
                                         min_value=0.0,
                                         step=0.1,
                                         format="%.1f",
                                         key=f"weight_{col_name}"
                                     )
-                                    user_weights[col_name] = weight_value
-                                    st.session_state.user_weights[col_name] = weight_value
+                                    user_weights[col_name] = float(weight_value)
+                                    st.session_state.user_weights[col_name] = float(weight_value)
             st.markdown("---")
             # --- User Context Section ---
             st.header(translations.get_text("user_context", lang_code))
@@ -733,13 +761,13 @@ def main():
                         context_value = st.number_input(
                             label=translations.get_text(field_config["label_key"], lang_code),
                             help=translations.get_text(field_config["help_key"], lang_code),
-                            value=user_context.get(field_key, float(field_config["default"])),
+                            value=float(user_context.get(field_key, float(field_config["default"]))),
                             min_value=0.0,
                             step=1.0 if field_key in ["fp_daily_production", "medal_production", "special_goods_production", "guild_goods_production"] else 100.0,
                             key=f"context_{field_key}"
                         )
-                        user_context[field_key] = context_value
-                        st.session_state.user_context[field_key] = context_value
+                        user_context[field_key] = float(context_value)
+                        st.session_state.user_context[field_key] = float(context_value)
             
             # Current Boosts Section
             st.subheader(translations.get_text("current_boosts_section", lang_code))
@@ -756,15 +784,42 @@ def main():
                         boost_value = st.number_input(
                             label=translations.get_text(field_config["label_key"], lang_code),
                             help=translations.get_text(field_config["help_key"], lang_code),
-                            value=user_boosts.get(field_key, float(field_config["default"])),
+                            value=float(user_boosts.get(field_key, float(field_config["default"]))),
                             min_value=0.0,
                             max_value=1000.0,
                             step=1.0,
                             format="%.1f",
                             key=f"boost_{field_key}"
                         )
-                        user_boosts[field_key] = boost_value
-                        st.session_state.user_boosts[field_key] = boost_value
+                        user_boosts[field_key] = float(boost_value)
+                        st.session_state.user_boosts[field_key] = float(boost_value)
+            
+            # Count active preferences for display
+            active_weights = sum(1 for v in st.session_state.user_weights.values() if v > 0)
+            
+            # Add a reset button and status indicator
+            st.markdown("---")
+            
+            # Show active weights status
+            if active_weights > 0 or any(v > 0 for v in st.session_state.user_context.values()) or any(v > 0 for v in st.session_state.user_boosts.values()):
+                st.info(f"⚖️ {active_weights} {translations.get_text('active_weights', lang_code)}")
+            
+            st.markdown("---")
+            col1, col2, col3 = st.columns([2, 1, 2])
+            with col2:
+                if st.button("🔄 " + translations.get_text("reset_preferences", lang_code), use_container_width=True, key="reset_prefs"):
+                    # Clear session state
+                    st.session_state.user_weights = {}
+                    st.session_state.user_context = {}
+                    st.session_state.user_boosts = {}
+                    # Save empty preferences to cookie
+                    save_preferences_to_cookie()
+                    st.success(translations.get_text("preferences_reset", lang_code))
+                    st.rerun()
+            
+            # Save all preferences to cookie at the end of weights tab
+            # This ensures all current widget values are captured
+            save_preferences_to_cookie()
 
         # Calculate efficiency if weights are set (after processing weights subtab)
         weights_active = any(w > 0 for w in user_weights.values()) if user_weights else False
@@ -1403,7 +1458,6 @@ def main():
         
         # Render the visualizations
         data_visualizations.render_data_visualizations(df_viz_display, lang_code, show_per_square, combine_army_stats)
-    
 
 
 # --- Main Execution Guard ---
