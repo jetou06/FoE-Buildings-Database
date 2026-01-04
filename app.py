@@ -1031,31 +1031,13 @@ def main():
                                 "Road": road_text
                             }
                             
-                            # Add consumable production data
+                            # Add consumable production data (store as numeric for proper sorting)
                             for consumable in selected_consumables:
                                 production_value = building.get(consumable, 0)
                                 if production_value > 0:
-                                    if show_frequency_format:
-                                        # Convert to "1 every X days" format
-                                        days_per_unit = 1 / production_value if production_value > 0 else float('inf')
-                                        if days_per_unit == float('inf'):
-                                            formatted_value = "Never"
-                                        elif days_per_unit >= 1:
-                                            formatted_value = f"1 every {days_per_unit:.2f} days" if lang_code == "en" else f"1 tous les {days_per_unit:.2f} jours"
-                                        else:
-                                            # Less than 1 day, show as hours
-                                            hours_per_unit = days_per_unit * 24
-                                            if hours_per_unit >= 1:
-                                                formatted_value = f"1 every {hours_per_unit:.1f} hours" if lang_code == "en" else f"1 toutes les {hours_per_unit:.1f} heures"
-                                            else:
-                                                minutes_per_unit = hours_per_unit * 60
-                                                formatted_value = f"1 every {minutes_per_unit:.0f} minutes" if lang_code == "en" else f"1 toutes les {minutes_per_unit:.0f} minutes"
-                                    else:
-                                        # Show per day format
-                                        formatted_value = f"{production_value:.2f}/day" if lang_code == "en" else f"{production_value:.2f}/jour"
-                                    
                                     translated_consumable = translations.translate_column(consumable, lang_code)
-                                    row_data[translated_consumable] = formatted_value
+                                    # Store the raw numeric value for sorting
+                                    row_data[translated_consumable] = production_value
                                 else:
                                     # Don't include buildings that don't produce this consumable
                                     continue
@@ -1066,33 +1048,28 @@ def main():
                                 display_data.append(row_data)
                         
                         if display_data:
-                            # Create DataFrame for display with numeric sorting columns
-                            # Add numeric values for sorting while building the data
-                            for row in display_data:
-                                building_name = row.get("Building Name", "")
-                                building_row = df_consumables_filtered[df_consumables_filtered['name'] == building_name]
-                                
-                                if not building_row.empty:
-                                    for consumable in selected_consumables:
-                                        translated_consumable = translations.translate_column(consumable, lang_code)
-                                        # Add hidden numeric column for sorting
-                                        row[f'_sort_{translated_consumable}'] = float(building_row[consumable].iloc[0])
-                            
+                            # Create DataFrame for display (values are already numeric for proper sorting)
                             consumables_df = pd.DataFrame(display_data)
                             
-                            # Sort by consumable production values numerically (descending - highest production first)
-                            sort_columns = [f'_sort_{translations.translate_column(consumable, lang_code)}' 
+                            # Sort columns list
+                            sort_columns = [translations.translate_column(consumable, lang_code) 
                                           for consumable in selected_consumables 
-                                          if f'_sort_{translations.translate_column(consumable, lang_code)}' in consumables_df.columns]
+                                          if translations.translate_column(consumable, lang_code) in consumables_df.columns]
                             
+                            # Initial sort by production values (descending - highest production first)
                             if sort_columns:
                                 consumables_df = consumables_df.sort_values(
                                     by=sort_columns, 
                                     ascending=False
                                 ).reset_index(drop=True)
-                                
-                                # Drop the sorting columns before display
-                                consumables_df = consumables_df.drop(columns=sort_columns)
+                            
+                            # Transform values if frequency format is selected
+                            if show_frequency_format:
+                                for consumable in selected_consumables:
+                                    translated_name = translations.translate_column(consumable, lang_code)
+                                    if translated_name in consumables_df.columns:
+                                        # Transform to days per unit (1 / production_per_day)
+                                        consumables_df[translated_name] = 1 / consumables_df[translated_name]
                             
                             # Configure column display
                             column_config = {
@@ -1114,14 +1091,30 @@ def main():
                                 )
                             }
                             
-                            # Add consumable columns to config
+                            # Add consumable columns to config with numeric formatting
                             for consumable in selected_consumables:
                                 translated_name = translations.translate_column(consumable, lang_code)
                                 if translated_name in consumables_df.columns:
-                                    column_config[translated_name] = st.column_config.TextColumn(
-                                        label=translated_name,
-                                        width="medium"
-                                    )
+                                    # Use NumberColumn for proper numeric sorting
+                                    if show_frequency_format:
+                                        # Frequency format - showing days per unit
+                                        suffix = " days" if lang_code == "en" else " jours"
+                                        help_text = "Days per unit (lower is better)" if lang_code == "en" else "Jours par unité (moins c'est mieux)"
+                                        
+                                        column_config[translated_name] = st.column_config.NumberColumn(
+                                            label=translated_name,
+                                            width="medium",
+                                            format="%.2f" + suffix,
+                                            help=help_text
+                                        )
+                                    else:
+                                        # Show per day format
+                                        suffix = "/day" if lang_code == "en" else "/jour"
+                                        column_config[translated_name] = st.column_config.NumberColumn(
+                                            label=translated_name,
+                                            width="medium",
+                                            format="%.2f" + suffix
+                                        )
                             
                             # Display summary
                             st.subheader(f"📋 {translations.get_text('results_summary', lang_code)}")
@@ -1237,25 +1230,13 @@ def main():
                                 "Road": road_text
                             }
                             
-                            # Add QI boost data
+                            # Add QI boost data (store as numeric values for proper sorting)
                             for qi_boost in selected_qi_boosts:
                                 boost_value = building.get(qi_boost, 0)
                                 if boost_value > 0:
-                                    if show_actual_values:
-                                        # Show actual values as they are
-                                        if qi_boost in config.PERCENTAGE_COLUMNS:
-                                            formatted_value = f"{boost_value:.0f}%"
-                                        else:
-                                            formatted_value = f"{boost_value:.0f}"
-                                    else:
-                                        # Show simplified format for percentages
-                                        if qi_boost in config.PERCENTAGE_COLUMNS:
-                                            formatted_value = f"+{boost_value:.0f}%"
-                                        else:
-                                            formatted_value = f"{boost_value:.0f}"
-                                    
+                                    # Store numeric value - formatting will be handled by column_config
                                     translated_qi_boost = translations.translate_column(qi_boost, lang_code)
-                                    row_data[translated_qi_boost] = formatted_value
+                                    row_data[translated_qi_boost] = boost_value
                                 else:
                                     # Don't include buildings that don't provide this QI boost
                                     continue
@@ -1266,31 +1247,19 @@ def main():
                                 display_data.append(row_data)
                         
                         if display_data:
-                            # Create DataFrame for display
+                            # Create DataFrame for display (values are already numeric for proper sorting)
                             qi_boosts_df = pd.DataFrame(display_data)
                             
-                            # Create numeric sorting columns for each QI boost
-                            for qi_boost in selected_qi_boosts:
-                                translated_qi_boost = translations.translate_column(qi_boost, lang_code)
-                                if translated_qi_boost in qi_boosts_df.columns:
-                                    # Create a hidden numeric column for sorting by extracting numbers from formatted strings
-                                    qi_boosts_df[f'_sort_{translated_qi_boost}'] = qi_boosts_df[translated_qi_boost].apply(
-                                        lambda x: float(str(x).replace('%', '').replace('+', '').replace(',', '')) if pd.notna(x) and str(x).strip() else 0
-                                    )
-                            
                             # Sort by QI boost values numerically (descending - highest first)
-                            sort_columns = [f'_sort_{translations.translate_column(qi_boost, lang_code)}' 
+                            sort_columns = [translations.translate_column(qi_boost, lang_code) 
                                           for qi_boost in selected_qi_boosts 
-                                          if f'_sort_{translations.translate_column(qi_boost, lang_code)}' in qi_boosts_df.columns]
+                                          if translations.translate_column(qi_boost, lang_code) in qi_boosts_df.columns]
                             
                             if sort_columns:
                                 qi_boosts_df = qi_boosts_df.sort_values(
                                     by=sort_columns, 
                                     ascending=False
                                 ).reset_index(drop=True)
-                                
-                                # Drop the sorting columns before display
-                                qi_boosts_df = qi_boosts_df.drop(columns=sort_columns)
                             
                             # Configure column display
                             column_config = {
@@ -1312,13 +1281,23 @@ def main():
                                 )
                             }
                             
-                            # Add QI boost columns to config
+                            # Add QI boost columns to config with numeric formatting
                             for qi_boost in selected_qi_boosts:
                                 translated_name = translations.translate_column(qi_boost, lang_code)
                                 if translated_name in qi_boosts_df.columns:
-                                    column_config[translated_name] = st.column_config.TextColumn(
+                                    # Use NumberColumn for proper numeric sorting
+                                    if qi_boost in config.PERCENTAGE_COLUMNS:
+                                        if show_actual_values:
+                                            format_string = "%.0f%%"
+                                        else:
+                                            format_string = "+%.0f%%"
+                                    else:
+                                        format_string = "%.0f"
+                                    
+                                    column_config[translated_name] = st.column_config.NumberColumn(
                                         label=translated_name,
-                                        width="medium"
+                                        width="medium",
+                                        format=format_string
                                     )
                             
                             # Display summary
