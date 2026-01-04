@@ -1066,8 +1066,33 @@ def main():
                                 display_data.append(row_data)
                         
                         if display_data:
-                            # Create DataFrame for display
+                            # Create DataFrame for display with numeric sorting columns
+                            # Add numeric values for sorting while building the data
+                            for row in display_data:
+                                building_name = row.get("Building Name", "")
+                                building_row = df_consumables_filtered[df_consumables_filtered['name'] == building_name]
+                                
+                                if not building_row.empty:
+                                    for consumable in selected_consumables:
+                                        translated_consumable = translations.translate_column(consumable, lang_code)
+                                        # Add hidden numeric column for sorting
+                                        row[f'_sort_{translated_consumable}'] = float(building_row[consumable].iloc[0])
+                            
                             consumables_df = pd.DataFrame(display_data)
+                            
+                            # Sort by consumable production values numerically (descending - highest production first)
+                            sort_columns = [f'_sort_{translations.translate_column(consumable, lang_code)}' 
+                                          for consumable in selected_consumables 
+                                          if f'_sort_{translations.translate_column(consumable, lang_code)}' in consumables_df.columns]
+                            
+                            if sort_columns:
+                                consumables_df = consumables_df.sort_values(
+                                    by=sort_columns, 
+                                    ascending=False
+                                ).reset_index(drop=True)
+                                
+                                # Drop the sorting columns before display
+                                consumables_df = consumables_df.drop(columns=sort_columns)
                             
                             # Configure column display
                             column_config = {
@@ -1243,6 +1268,29 @@ def main():
                         if display_data:
                             # Create DataFrame for display
                             qi_boosts_df = pd.DataFrame(display_data)
+                            
+                            # Create numeric sorting columns for each QI boost
+                            for qi_boost in selected_qi_boosts:
+                                translated_qi_boost = translations.translate_column(qi_boost, lang_code)
+                                if translated_qi_boost in qi_boosts_df.columns:
+                                    # Create a hidden numeric column for sorting by extracting numbers from formatted strings
+                                    qi_boosts_df[f'_sort_{translated_qi_boost}'] = qi_boosts_df[translated_qi_boost].apply(
+                                        lambda x: float(str(x).replace('%', '').replace('+', '').replace(',', '')) if pd.notna(x) and str(x).strip() else 0
+                                    )
+                            
+                            # Sort by QI boost values numerically (descending - highest first)
+                            sort_columns = [f'_sort_{translations.translate_column(qi_boost, lang_code)}' 
+                                          for qi_boost in selected_qi_boosts 
+                                          if f'_sort_{translations.translate_column(qi_boost, lang_code)}' in qi_boosts_df.columns]
+                            
+                            if sort_columns:
+                                qi_boosts_df = qi_boosts_df.sort_values(
+                                    by=sort_columns, 
+                                    ascending=False
+                                ).reset_index(drop=True)
+                                
+                                # Drop the sorting columns before display
+                                qi_boosts_df = qi_boosts_df.drop(columns=sort_columns)
                             
                             # Configure column display
                             column_config = {
