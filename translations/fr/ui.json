@@ -331,9 +331,5 @@
     "Common": "Commun",
     "Uncommon": "Peu commun",
     "Rare": "Rare",
-    "Epic": "Epique",
-    "reset_preferences": "Réinitialiser toutes les préférences",
-    "preferences_reset": "Toutes les préférences ont été réinitialisées aux valeurs par défaut.",
-    "preferences_saved": "Préférences sauvegardées automatiquement",
-    "active_weights": "poids actifs"
+    "Epic": "Epique"
 }
